@@ -526,7 +526,7 @@ export const DateFilterTrigger = React.forwardRef<
 		<button
 			ref={ref}
 			onClick={onClick}
-			className={`relative inline-flex items-center px-3 py-2 border border-gray-200 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-primary-300 hover:text-primary-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-soft ${className}`}
+			className={`relative inline-flex items-center px-3 py-2 border border-gray-200 rounded-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-primary-300 hover:text-primary-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 shadow-soft ${className}`}
 		>
 			<CalendarIcon className="w-4 h-4 mr-2 text-primary-500" />
 			<span className="hidden sm:inline">{formatRange()}</span>
