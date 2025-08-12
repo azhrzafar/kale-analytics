@@ -1,6 +1,6 @@
 {
 	"name": "Kale - Analytics Dashboard",
-	"short_name": "Kale Finance",
+	"short_name": "Kale Analytics",
 	"description": "Modern Analytics analytics platform for smart business decisions",
 	"start_url": "/",
 	"display": "standalone",
@@ -26,7 +26,7 @@
 			"purpose": "any maskable"
 		}
 	],
-	"categories": ["finance", "business", "productivity"],
+	"categories": ["Analytics", "business", "productivity"],
 	"lang": "en-US",
 	"dir": "ltr"
 }

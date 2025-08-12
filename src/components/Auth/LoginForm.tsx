@@ -80,7 +80,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
 						Welcome back
 					</h2>
 					<p className="text-gray-600">
-						Sign in to your Kale Finance Dashboard
+						Sign in to your Kale Analytics Dashboard
 					</p>
 				</div>
 

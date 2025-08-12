@@ -20,9 +20,9 @@ export const metadata: Metadata = {
 		'budget management',
 		'Analytics insights',
 	],
-	authors: [{ name: 'Kale Finance' }],
-	creator: 'Kale Finance',
-	publisher: 'Kale Finance',
+	authors: [{ name: 'Kale Analytics' }],
+	creator: 'Kale Analytics',
+	publisher: 'Kale Analytics',
 	robots: 'index, follow',
 	openGraph: {
 		title: 'Kale - Analytics Dashboard',
