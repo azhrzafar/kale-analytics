@@ -52,11 +52,14 @@ interface BounceReason {
 
 interface BounceExample {
 	id: number;
-	Email: string;
-	lead_mx_provider: string;
-	client_id: number;
-	campaign_id: number;
-	raw_message_id: string;
+	email: string;
+	domain: string;
+	provider: string;
+	reason: string;
+	bounceType: string;
+	timestamp: string;
+	rawMessageId: string;
+	campaign: string;
 }
 
 interface ReputationConnector {
@@ -270,7 +273,7 @@ export default function DeliverabilityInvestigation({
 					percentage: 45.2,
 					examples: [
 						{
-							id: '1',
+							id: 1,
 							email: 'john.doe@company.com',
 							domain: 'company.com',
 							provider: 'Gmail',
@@ -281,7 +284,7 @@ export default function DeliverabilityInvestigation({
 							campaign: 'Q1 Tech Outreach',
 						},
 						{
-							id: '2',
+							id: 2,
 							email: 'test@startupxyz.com',
 							domain: 'startupxyz.com',
 							provider: 'Outlook',
@@ -300,7 +303,7 @@ export default function DeliverabilityInvestigation({
 					percentage: 19.4,
 					examples: [
 						{
-							id: '3',
+							id: 3,
 							email: 'sarah@techcorp.com',
 							domain: 'techcorp.com',
 							provider: 'Gmail',
@@ -319,7 +322,7 @@ export default function DeliverabilityInvestigation({
 					percentage: 13.0,
 					examples: [
 						{
-							id: '4',
+							id: 4,
 							email: 'contact@invalid-domain.com',
 							domain: 'invalid-domain.com',
 							provider: 'Gmail',
@@ -338,7 +341,7 @@ export default function DeliverabilityInvestigation({
 					percentage: 9.9,
 					examples: [
 						{
-							id: '5',
+							id: 5,
 							email: 'info@startupxyz.com',
 							domain: 'startupxyz.com',
 							provider: 'Yahoo',
@@ -808,7 +811,9 @@ export default function DeliverabilityInvestigation({
 												</span>
 												<button
 													className="text-primary-600 hover:text-primary-900 transition-colors duration-200"
-													onClick={() => handleBounceSelect(example.id)}
+													onClick={() =>
+														handleBounceSelect(example.id.toString())
+													}
 												>
 													Trace: {example.rawMessageId}
 												</button>
