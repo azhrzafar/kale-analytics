@@ -27,11 +27,12 @@ export const tabs = [
 		href: '/campaigns',
 	},
 	{
-		id: 'inboxes',
-		name: 'Inbox Health',
-		icon: EnvelopeIcon,
-		href: '/inboxes',
+		id: 'campaign-analytics',
+		name: 'Campaign Analytics',
+		icon: ChartBarIcon,
+		href: '/campaign-analytics',
 	},
+
 	{
 		id: 'deliverability',
 		name: 'Deliverability',
@@ -45,11 +46,13 @@ export const tabs = [
 export const getTabDescription = (tabId: string) => {
 	switch (tabId) {
 		case 'dashboard':
-			return 'Key metrics and Analytics insights.';
+			return 'Executive overview and cross-platform insights.';
 		case 'clients':
 			return 'Client management and performance.';
 		case 'campaigns':
 			return 'Campaign management and analytics.';
+		case 'campaign-analytics':
+			return 'Per-campaign analysis with step-level insights and A/B testing.';
 		case 'inboxes':
 			return 'Inbox health and capacity management.';
 		case 'deliverability':

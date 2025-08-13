@@ -30,8 +30,8 @@ interface InboxData {
 	id: string;
 	domain_id: string;
 	email: string;
-	daily_send_limit: string;
-	send_count: string;
+	daily_send_limit: string; // schema: text
+	send_count: string; // schema: text
 	created_at: string;
 	updated_at: string;
 }
@@ -80,78 +80,34 @@ export default function InboxHealth({ onInboxSelect }: InboxHealthProps) {
 
 		// Simulate API call
 		setTimeout(() => {
+			// Schema-compliant mock: only schema fields; derive UI fields later
 			setInboxes([
 				{
 					id: '1',
+					domain_id: 'uuid-techcorp',
 					email: 'john@techcorp.com',
-					domain: 'techcorp.com',
-					dailySendLimit: 500,
-					todaySendCount: 450,
-					usagePercentage: 90,
-					lastSentAt: '2024-01-20 15:30',
-					status: 'active',
-					sendingErrors: 5,
-					errorRate: 1.1,
+					daily_send_limit: '500',
+					send_count: '450',
+					created_at: '2024-01-20T15:30:00Z',
+					updated_at: '2024-01-20T15:30:00Z',
 				},
 				{
 					id: '2',
+					domain_id: 'uuid-techcorp',
 					email: 'sarah@techcorp.com',
-					domain: 'techcorp.com',
-					dailySendLimit: 500,
-					todaySendCount: 320,
-					usagePercentage: 64,
-					lastSentAt: '2024-01-20 14:15',
-					status: 'active',
-					sendingErrors: 2,
-					errorRate: 0.6,
+					daily_send_limit: '500',
+					send_count: '320',
+					created_at: '2024-01-20T14:15:00Z',
+					updated_at: '2024-01-20T14:15:00Z',
 				},
 				{
 					id: '3',
+					domain_id: 'uuid-startupxyz',
 					email: 'mike@startupxyz.com',
-					domain: 'startupxyz.com',
-					dailySendLimit: 300,
-					todaySendCount: 285,
-					usagePercentage: 95,
-					lastSentAt: '2024-01-20 16:45',
-					status: 'warmup',
-					sendingErrors: 12,
-					errorRate: 4.2,
-				},
-				{
-					id: '4',
-					email: 'lisa@globalinnovations.com',
-					domain: 'globalinnovations.com',
-					dailySendLimit: 800,
-					todaySendCount: 720,
-					usagePercentage: 90,
-					lastSentAt: '2024-01-20 13:20',
-					status: 'active',
-					sendingErrors: 8,
-					errorRate: 1.1,
-				},
-				{
-					id: '5',
-					email: 'alex@startupxyz.com',
-					domain: 'startupxyz.com',
-					dailySendLimit: 300,
-					todaySendCount: 150,
-					usagePercentage: 50,
-					lastSentAt: '2024-01-20 12:30',
-					status: 'paused',
-					sendingErrors: 0,
-					errorRate: 0,
-				},
-				{
-					id: '6',
-					email: 'test@company.com',
-					domain: 'company.com',
-					dailySendLimit: 200,
-					todaySendCount: 0,
-					usagePercentage: 0,
-					lastSentAt: '2024-01-19 18:00',
-					status: 'blocked',
-					sendingErrors: 45,
-					errorRate: 22.5,
+					daily_send_limit: '300',
+					send_count: '285',
+					created_at: '2024-01-20T16:45:00Z',
+					updated_at: '2024-01-20T16:45:00Z',
 				},
 			]);
 
@@ -229,7 +185,33 @@ export default function InboxHealth({ onInboxSelect }: InboxHealthProps) {
 	}, []);
 
 	// Filter and sort inboxes
-	const filteredInboxes = inboxes
+	// Derive UI fields from schema-only inbox shape
+	const derived = inboxes.map((inbox) => {
+		const dailyLimitNum = Number(inbox.daily_send_limit) || 0;
+		const sendCountNum = Number(inbox.send_count) || 0;
+		const usagePercentage =
+			dailyLimitNum > 0
+				? Math.min(100, Math.round((sendCountNum / dailyLimitNum) * 100))
+				: 0;
+		return {
+			...inbox,
+			domain: 'example.com', // placeholder; would be resolved via domains by domain_id
+			dailySendLimit: dailyLimitNum,
+			todaySendCount: sendCountNum,
+			usagePercentage,
+			lastSentAt: inbox.updated_at,
+			status:
+				usagePercentage >= 90
+					? 'active'
+					: usagePercentage === 0
+					? 'paused'
+					: 'active',
+			sendingErrors: 0,
+			errorRate: 0,
+		} as any;
+	});
+
+	const filteredInboxes = derived
 		.filter((inbox) => {
 			const matchesSearch =
 				inbox.email.toLowerCase().includes(searchTerm.toLowerCase()) ||

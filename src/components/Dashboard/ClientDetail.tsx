@@ -72,7 +72,6 @@ interface CampaignData {
 	interested: number;
 	status: string;
 	client_name: string;
-	Onboarding_Date: string;
 }
 
 interface StepData {
@@ -212,7 +211,6 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 					interested: 134,
 					status: 'active',
 					client_name: 'N2',
-					Onboarding_Date: '2024-01-15',
 				},
 				{
 					id: 2,
@@ -228,7 +226,6 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 					interested: 67,
 					status: 'active',
 					client_name: 'N2',
-					Onboarding_Date: '2024-01-15',
 				},
 				{
 					id: 3,
@@ -244,7 +241,6 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 					interested: 33,
 					status: 'paused',
 					client_name: 'N2',
-					Onboarding_Date: '2024-01-15',
 				},
 			]);
 
@@ -603,9 +599,7 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
 									Send→Positive
 								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-									Last Send
-								</th>
+
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
 									Status
 								</th>
@@ -656,24 +650,27 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
 										<div className="text-sm font-medium text-gray-900">
-											{formatNumber(campaign.replies)}
+											{formatNumber(campaign.interested)}
 										</div>
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
 										<div className="text-sm text-gray-900">
-											{campaign.bounced.toFixed(1)}%
+											{(
+												(campaign.bounced / Math.max(campaign.sent, 1)) *
+												100
+											).toFixed(1)}
+											%
 										</div>
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
 										<div className="text-sm font-medium text-gray-900">
-											1 per {campaign.interested.toFixed(1)}
+											1:
+											{(
+												campaign.sent / Math.max(campaign.interested, 1)
+											).toFixed(1)}
 										</div>
 									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm text-gray-600">
-											{new Date(campaign.Onboarding_Date).toLocaleDateString()}
-										</div>
-									</td>
+
 									<td className="px-6 py-4 whitespace-nowrap">
 										<span
 											className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
