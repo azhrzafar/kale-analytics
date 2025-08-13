@@ -121,7 +121,7 @@ export default function ExecutiveOverview({
 				},
 				{
 					id: 'contacts-reached',
-					label: 'Unique Leads Contacted',
+					label: 'Unique Leads',
 					value: 485000,
 					// change: 6.2,
 					// changeType: 'positive',
@@ -306,49 +306,23 @@ export default function ExecutiveOverview({
 	};
 
 	const getIconBackground = (label: string) => {
-		if (label.includes('Total Leads')) return 'bg-primary-50';
-		if (label.includes('Total Sends')) return 'bg-success-50';
-		if (label.includes('Total Replies')) return 'bg-secondary-50';
-		if (label.includes('Reply Rate')) return 'bg-warning-50';
-		if (label.includes('Active Inboxes')) return 'bg-info-50';
-		if (label.includes('Active Campaigns')) return 'bg-neutral-50';
+		if (label.includes('Emails Sent')) return 'bg-primary-50';
+		if (label.includes('Unique Leads')) return 'bg-success-50';
+		if (label.includes('Reply Count')) return 'bg-secondary-50';
+		if (label.includes('Positive Reply Count')) return 'bg-warning-50';
+		if (label.includes('Bounce Count')) return 'bg-danger-50';
+		if (label.includes('Send→Positive Ratio')) return 'bg-neutral-50';
 		return 'bg-neutral-100';
 	};
 
 	const getIconColor = (label: string) => {
-		if (label.includes('Total Leads')) return 'text-primary-600';
-		if (label.includes('Total Sends')) return 'text-success-600';
-		if (label.includes('Total Replies')) return 'text-secondary-600';
-		if (label.includes('Reply Rate')) return 'text-warning-600';
-		if (label.includes('Active Inboxes')) return 'text-info-600';
-		if (label.includes('Active Campaigns')) return 'text-neutral-600';
+		if (label.includes('Emails Sent')) return 'text-primary-600';
+		if (label.includes('Unique Leads')) return 'text-success-600';
+		if (label.includes('Reply Count')) return 'text-secondary-600';
+		if (label.includes('Positive Reply Count')) return 'text-warning-600';
+		if (label.includes('Bounce Count')) return 'text-danger-600';
+		if (label.includes('Send→Positive Ratio')) return 'text-neutral-600';
 		return 'text-neutral-600';
-	};
-
-	const getAlertIcon = (type: string) => {
-		switch (type) {
-			case 'warning':
-				return ExclamationTriangleIcon;
-			case 'error':
-				return ExclamationCircleIcon;
-			case 'info':
-				return InformationCircleIcon;
-			default:
-				return BellIcon;
-		}
-	};
-
-	const getAlertColor = (type: string) => {
-		switch (type) {
-			case 'warning':
-				return 'bg-warning-50 border-warning-200 text-warning-800';
-			case 'error':
-				return 'bg-danger-50 border-danger-200 text-danger-800';
-			case 'info':
-				return 'bg-primary-50 border-primary-200 text-primary-800';
-			default:
-				return 'bg-neutral-50 border-neutral-200 text-neutral-800';
-		}
 	};
 
 	if (loading) {
@@ -403,16 +377,24 @@ export default function ExecutiveOverview({
 								<option value="innovate">Innovate Labs</option>
 								<option value="startup">StartupXYZ</option>
 							</select>
-							<select
-								value={selectedPlatform}
-								onChange={(e) => setSelectedPlatform(e.target.value)}
-								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 focus:outline-none transition-all duration-200"
-							>
-								<option value="all">All Platforms</option>
-								<option value="bison">Bison</option>
-								<option value="instantly">Instantly</option>
-								<option value="missive">Missive</option>
-							</select>
+
+							{/* Platform Toggle */}
+							<div className="flex bg-white/80 backdrop-blur-sm border border-primary-200 rounded-sm p-1">
+								{['all', 'instantly', 'bison', 'missive'].map((platform) => (
+									<button
+										key={platform}
+										onClick={() => setSelectedPlatform(platform)}
+										className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors duration-200 ${
+											selectedPlatform === platform
+												? 'bg-primary-100 text-primary-700 shadow-sm'
+												: 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+										}`}
+									>
+										{platform.charAt(0).toUpperCase() + platform.slice(1)}
+									</button>
+								))}
+							</div>
+
 							<DateRangeFilter />
 						</div>
 					</div>
@@ -422,21 +404,20 @@ export default function ExecutiveOverview({
 			{/* KPI Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
 				{kpiData.map((metric) => {
+					const Icon = metric.icon;
 					const ChangeIcon = getChangeIcon(metric.changeType ?? 'neutral');
+					const changeColor = getChangeColor(metric.changeType ?? 'neutral');
+					const iconBg = getIconBackground(metric.label);
+					const iconColor = getIconColor(metric.label);
+					console.log({ iconBg, iconColor, metric: metric.label });
 					return (
 						<div
 							key={metric.id}
 							className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 p-6 hover:shadow-lg transition-all duration-200"
 						>
 							<div className="flex items-center justify-between">
-								<div
-									className={`p-2 rounded-sm ${getIconBackground(
-										metric.label
-									)}`}
-								>
-									<metric.icon
-										className={`h-5 w-5 ${getIconColor(metric.label)}`}
-									/>
+								<div className={`p-2 rounded-sm ${iconBg}`}>
+									<Icon className={`h-5 w-5 ${iconColor}`} />
 								</div>
 								<div
 									className={`flex items-center space-x-1 ${getChangeColor(
