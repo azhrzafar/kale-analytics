@@ -3,32 +3,23 @@
 import React, { useState, useEffect } from 'react';
 import {
 	ChartBarIcon,
-	EnvelopeIcon,
 	CheckCircleIcon,
 	ExclamationTriangleIcon,
 	ArrowTrendingUpIcon,
 	ArrowTrendingDownIcon,
 	MinusIcon,
 	FunnelIcon,
-	CalendarIcon,
 	UsersIcon,
-	BellIcon,
 	PlayIcon,
 	PauseIcon,
-	ExclamationCircleIcon,
 	EyeIcon,
-	MagnifyingGlassIcon,
 	BuildingOfficeIcon,
-	GlobeAltIcon,
-	InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
-	ChartBarIcon as ChartBarSolidIcon,
 	EnvelopeIcon as EnvelopeSolidIcon,
 	CheckCircleIcon as CheckCircleSolidIcon,
-	ExclamationTriangleIcon as ExclamationTriangleSolidIcon,
 } from '@heroicons/react/24/solid';
-import { formatPercentage, formatNumber } from '@/lib/utils';
+import { formatNumber } from '@/lib/utils';
 import { TimeSeriesChart, PlatformBreakdown } from './ChartComponents';
 import DateRangeFilter from '../Common/DatePicker';
 
@@ -87,7 +78,6 @@ export default function ExecutiveOverview({
 }: ExecutiveOverviewProps) {
 	const [selectedClient, setSelectedClient] = useState('all');
 	const [selectedPlatform, setSelectedPlatform] = useState('all');
-	const [timeframe, setTimeframe] = useState('30');
 	const [selectedMetrics, setSelectedMetrics] = useState([
 		'emails',
 		'replies',
@@ -101,20 +91,17 @@ export default function ExecutiveOverview({
 	const [loading, setLoading] = useState(true);
 
 	// Mock data based on actual Supabase data volumes
-	useEffect(() => {
+	const fetchKpiData = async () => {
 		setLoading(true);
-
-		// Simulate API call
-		setTimeout(() => {
-			// Core five metrics from client conversation
+		try {
+			const response = await fetch('/api/analytics/kpi');
+			const { data } = await response.json();
+			console.log({ data });
 			setKpiData([
 				{
 					id: 'emails-sent',
 					label: 'Emails Sent',
-					value: 627560,
-					// change: 8.7,
-					// changeType: 'positive',
-					// subtitle: 'vs last period',
+					value: data.totalEmailsSent ?? 0,
 					icon: EnvelopeSolidIcon,
 					format: 'number',
 					trend: 'up',
@@ -122,10 +109,7 @@ export default function ExecutiveOverview({
 				{
 					id: 'contacts-reached',
 					label: 'Unique Leads',
-					value: 485000,
-					// change: 6.2,
-					// changeType: 'positive',
-					// subtitle: 'vs last period',
+					value: data.uniqueLeadsConnected ?? 0,
 					icon: UsersIcon,
 					format: 'number',
 					trend: 'up',
@@ -133,42 +117,34 @@ export default function ExecutiveOverview({
 				{
 					id: 'total-replies',
 					label: 'Reply Count',
-					value: 56032,
-					change: 15.2,
-					// changeType: 'positive',
-					icon: CheckCircleIcon,
-					format: 'number',
-					trend: 'up',
-				},
-
-				{
-					id: 'positive-replies',
-					label: 'Positive Reply Count',
-					value: 40230,
-					change: 18.7,
-					// changeType: 'positive',
+					value: data.totalReplies ?? 0,
+					change: data.replyRate ?? 0,
 					icon: CheckCircleSolidIcon,
 					format: 'number',
 					trend: 'up',
 				},
-
+				{
+					id: 'positive-replies',
+					label: 'Positive Reply Count',
+					value: data.positiveReplies ?? 0,
+					change: data.positiveRepliesRate ?? 0,
+					icon: CheckCircleIcon,
+					format: 'number',
+					trend: 'up',
+				},
 				{
 					id: 'bounce-count',
 					label: 'Bounce Count',
-					value: 6543,
-					change: -5.2,
+					value: data.totalBounce ?? 0,
+					change: data.bounceRate ?? 0,
 					icon: ExclamationTriangleIcon,
 					format: 'number',
 					trend: 'down',
 				},
-
 				{
 					id: 'send-to-positive-ratio',
 					label: 'Send→Positive Ratio',
-					value: 8.1,
-					// change: -0.3,
-					// changeType: 'positive',
-					// subtitle: 'vs last period (1:8.1)',
+					value: data.sendPositiveRatio ?? '0:0',
 					icon: FunnelIcon,
 					format: 'ratio',
 					trend: 'up',
@@ -176,33 +152,33 @@ export default function ExecutiveOverview({
 			]);
 
 			// Platform performance data based on actual volumes
-			setPlatformData([
-				{
-					platform: 'Bison',
-					sends: 316121,
-					replies: 7957,
-					replyRate: 2.5,
-					bounceRate: 1.8,
-					leads: 285000,
-				},
-				{
-					platform: 'Instantly',
-					sends: 5719,
-					replies: 24037,
-					replyRate: 420.2,
-					bounceRate: 2.1,
-					leads: 185000,
-				},
-				{
-					platform: 'Missive',
-					sends: 5720,
-					replies: 24038,
-					replyRate: 420.2,
-					bounceRate: 1.9,
-					leads: 132320,
-				},
-			]);
-
+			// setPlatformData([
+			// 	{
+			// 		platform: 'Bison',
+			// 		sends: 316121,
+			// 		replies: 7957,
+			// 		replyRate: 2.5,
+			// 		bounceRate: 1.8,
+			// 		leads: 285000,
+			// 	},
+			// 	{
+			// 		platform: 'Instantly',
+			// 		sends: 5719,
+			// 		replies: 24037,
+			// 		replyRate: 420.2,
+			// 		bounceRate: 2.1,
+			// 		leads: 185000,
+			// 	},
+			// 	{
+			// 		platform: 'Missive',
+			// 		sends: 5720,
+			// 		replies: 24038,
+			// 		replyRate: 420.2,
+			// 		bounceRate: 1.9,
+			// 		leads: 132320,
+			// 	},
+			// ]);
+			await fetchPlatformData();
 			// Top clients based on actual data
 			setTopClients([
 				{
@@ -278,9 +254,25 @@ export default function ExecutiveOverview({
 					metric: 'lead_volume',
 				},
 			]);
-
+		} catch (error) {
+			console.error('Error fetching KPI data:', error);
+		} finally {
 			setLoading(false);
-		}, 1000);
+		}
+	};
+
+	const fetchPlatformData = async () => {
+		try {
+			const response = await fetch('/api/analytics/platform-performance');
+			const { data } = await response.json();
+			setPlatformData(data);
+		} catch (error) {
+			console.error('Error fetching platform performance data:', error);
+		}
+	};
+
+	useEffect(() => {
+		fetchKpiData();
 	}, [timeFilter, preset]);
 
 	const getChangeIcon = (changeType: string) => {
@@ -409,7 +401,6 @@ export default function ExecutiveOverview({
 					const changeColor = getChangeColor(metric.changeType ?? 'neutral');
 					const iconBg = getIconBackground(metric.label);
 					const iconColor = getIconColor(metric.label);
-					console.log({ iconBg, iconColor, metric: metric.label });
 					return (
 						<div
 							key={metric.id}
@@ -429,7 +420,7 @@ export default function ExecutiveOverview({
 								>
 									{metric.changeType && <ChangeIcon className="h-3 w-3" />}
 									<span className="text-xs font-medium">
-										{metric.change && metric.change > 0 ? '+' : ''}
+										{/* {metric.change && metric.change > 0 ? '+' : ''} */}
 										{metric.change && `${metric.change.toFixed(1)}%`}
 									</span>
 								</div>
@@ -439,7 +430,7 @@ export default function ExecutiveOverview({
 									{metric.format === 'percentage'
 										? `${metric.value.toFixed(1)}%`
 										: metric.format === 'ratio'
-										? `1:${metric.value.toFixed(1)}`
+										? metric.value
 										: formatNumber(metric.value)}
 								</div>
 								<div className="text-sm font-medium text-gray-900">
