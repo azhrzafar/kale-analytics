@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
 		if (platform && platform !== 'all') args.platform_filter = platform;
 
 		const { data, error } = await supabase.rpc('get_send_volume_trends', args);
-		console.log({ startDate, endDate, platform, data, error });
 
 		if (error) {
 			console.error('Error fetching send volume trends:', error);

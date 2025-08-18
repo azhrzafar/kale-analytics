@@ -93,7 +93,9 @@ export default function PlatformPerformance({
 				))}
 
 				{/* Platform Distribution */}
-				<PlatformDistribution platformData={data} loading={loading} />
+				{!!data.length && (
+					<PlatformDistribution platformData={data} loading={loading} />
+				)}
 			</div>
 		</div>
 	);
