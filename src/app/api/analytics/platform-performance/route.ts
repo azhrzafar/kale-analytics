@@ -10,10 +10,9 @@ export async function GET(request: NextRequest) {
 		const platform = searchParams.get('platform');
 
 		// Get platform performance data using individual RPC functions
-		const [bisonResult, instantlyResult, missiveResult] = await Promise.all([
+		const [bisonResult, instantlyResult] = await Promise.all([
 			supabase.rpc('get_bison_performance'),
 			supabase.rpc('get_instantly_performance'),
-			supabase.rpc('get_missive_performance'),
 		]);
 
 		// Check for errors
@@ -23,16 +22,17 @@ export async function GET(request: NextRequest) {
 		if (instantlyResult.error) {
 			console.error('Error fetching Instantly data:', instantlyResult.error);
 		}
-		if (missiveResult.error) {
-			console.error('Error fetching Missive data:', missiveResult.error);
-		}
-
-		// Consolidate all platform data
-		const allPlatformData = [
+		// Consolidate all platform data (and optionally filter by a selected platform)
+		let allPlatformData = [
 			...(bisonResult.data || []),
 			...(instantlyResult.data || []),
-			...(missiveResult.data || []),
 		];
+		if (platform && platform !== 'all') {
+			const normalized = platform.toLowerCase();
+			allPlatformData = allPlatformData.filter((p: any) =>
+				(p.platform || '').toString().toLowerCase().includes(normalized)
+			);
+		}
 
 		// Transform data to match the expected format
 		const formattedPlatformData = allPlatformData.map((platform: any) => ({
@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
 			replyRate: platform.reply_rate || 0,
 			bounceRate: platform.bounce_rate || 0,
 			leads: platform.leads || 0,
+			positiveRate: platform.positive_rate || 0,
 		}));
 
 		return NextResponse.json({
@@ -50,7 +51,6 @@ export async function GET(request: NextRequest) {
 			rawData: {
 				bison: bisonResult.data,
 				instantly: instantlyResult.data,
-				missive: missiveResult.data,
 			},
 			timestamp: new Date().toISOString(),
 		});

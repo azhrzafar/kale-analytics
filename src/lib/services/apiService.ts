@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Client } from '../hooks/useClients';
 
 // API base configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
@@ -115,7 +116,7 @@ export class APIService {
 			if (filters.platform) params.append('platform', filters.platform);
 
 			const response = await apiClient.get<APIResponse<any[]>>(
-				`/api/analytics/platform?${params.toString()}`
+				`/api/analytics/platform-performance?${params.toString()}`
 			);
 
 			if (response.data.success) {
@@ -239,6 +240,28 @@ export class APIService {
 			}
 		} catch (error) {
 			console.error('Error fetching all analytics data:', error);
+			throw error;
+		}
+	}
+
+	// Get all clients from Supabase
+	static async getAllClients(): Promise<Array<Client>> {
+		try {
+			const { supabase } = await import('@/lib/supabase');
+
+			const { data, error } = await supabase
+				.from('Clients')
+				.select('*')
+				.order('id');
+
+			if (error) {
+				console.error('Error fetching clients:', error);
+				throw new Error(error.message);
+			}
+
+			return data || [];
+		} catch (error) {
+			console.error('Error fetching all clients:', error);
 			throw error;
 		}
 	}

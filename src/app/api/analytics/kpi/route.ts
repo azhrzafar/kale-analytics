@@ -50,24 +50,28 @@ export async function GET(request: NextRequest) {
 		// Get individual metrics using RPC functions
 		const { data: uniqueLeadsConnected, error: uniqueLeadsConnectedError } =
 			await supabase.rpc('get_unique_leads_connected');
+		const platformFilter = platform && platform !== 'all' ? platform : null;
 		const { data: totalEmailsSent, error: totalEmailsError } =
-			await supabase.rpc('get_total_emails_sent');
+			await supabase.rpc('get_total_emails_sent', { platform: platformFilter });
 		const { data: totalReplies, error: totalRepliesError } = await supabase.rpc(
-			'get_total_replies'
+			'get_total_replies',
+			{ platform: platformFilter }
 		);
 		const { data: totalBounce, error: totalBounceError } = await supabase.rpc(
-			'get_bounced_emails'
+			'get_bounced_emails',
+			{ platform: platformFilter }
 		);
 		const { data: bounceRate, error: bounceRateError } = await supabase.rpc(
-			'get_bounced_rate'
+			'get_bounced_rate',
+			{ platform: platformFilter }
 		);
 		const { data: positiveReplies, error: positiveRepliesError } =
-			await supabase.rpc('get_positive_replies');
+			await supabase.rpc('get_positive_replies', { platform: platformFilter });
 
 		const { data: positiveRepliesRate, error: positiveRepliesRateError } =
-			await supabase.rpc('get_positive_replies_rate');
-		const { data: sendPositiveRatio, error: sendPositiveRatioError } =
-			await supabase.rpc('get_send_positive_ratio');
+			await supabase.rpc('get_positive_replies_rate', {
+				platform: platformFilter,
+			});
 
 		// Log any errors
 		[
@@ -78,7 +82,6 @@ export async function GET(request: NextRequest) {
 			bounceRateError,
 			positiveRepliesError,
 			positiveRepliesRateError,
-			sendPositiveRatioError,
 		].forEach((error) => {
 			if (error) console.error('RPC Error:', error);
 		});
@@ -86,6 +89,12 @@ export async function GET(request: NextRequest) {
 		// Calculate rates manually as fallback
 		const replyRate =
 			totalEmailsSent > 0 ? (totalReplies / totalEmailsSent) * 100 : 0;
+
+		// Compute send → positive ratio from filtered values
+		const sendPositiveRatio =
+			totalEmailsSent > 0 && positiveReplies > 0
+				? `${Math.round(totalEmailsSent / positiveReplies)}:1`
+				: '0:0';
 
 		return NextResponse.json({
 			success: true,
