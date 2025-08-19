@@ -7,30 +7,42 @@ import {
 	ArrowUpIcon,
 	ArrowDownIcon,
 	EyeIcon,
-	ChartBarIcon,
-	CheckCircleIcon,
-	ExclamationTriangleIcon,
-	PauseIcon,
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { formatNumber } from '@/lib/utils';
-import { useClients } from '@/lib/hooks/useClients';
+import { useClientsList } from '@/lib/hooks/useClientsList';
 
+// emailsSent: stat.emails_sent || 0,
+// replies: stat.replies || 0,
+// replyRate: stat.reply_rate || 0,
+// positiveReplies: stat.positive_replies || 0,
+// positiveReplyRate: stat.positive_reply_rate || 0,
+// bounces: stat.bounces || 0,
+// bounceRate: stat.bounce_rate || 0,
+// uniqueLeads: stat.unique_leads || 0,
 interface ClientData {
 	id: string;
 	name: string;
 	onboardDate: string;
 	services: string[];
-	replyRate: number;
-	replyRateChange: number;
-	positiveReplies: number;
-	positiveRepliesChange: number;
-	bounceRate: number;
-	bounceRateChange: number;
 	emailsSent: number;
-	emailsSentChange: number;
+	replies: number;
+	replyRate: number;
+	positiveReplies: number;
+	positiveReplyRate: number;
+	bounces: number;
+	bounceRate: number;
 	uniqueLeads: number;
-	uniqueLeadsChange: number;
+
+	// Additional client fields
+	domain: string;
+	primaryEmail: string;
+	primaryNumber: string;
+	contactTitle: string;
+	industry: string;
+	instantlyApi: string;
+	bisonApi: string;
+	instantlyApiV2: string;
 }
 
 export default function ClientsList() {
@@ -44,77 +56,26 @@ export default function ClientsList() {
 	const router = useRouter();
 
 	// Fetch clients using custom hook
-	const { clients } = useClients();
+	const {
+		clients,
+		loading: clientsLoading,
+		error,
+	} = useClientsList({
+		searchTerm,
+		sortBy,
+		sortOrder,
+	});
 
 	// Transform clients data for display
 	useEffect(() => {
-		setLoading(true);
+		if (!clientsLoading) {
+			setClientData(clients);
+			setLoading(false);
+		}
+	}, [clients, clientsLoading]);
 
-		// Transform the fetched clients into the format needed for display
-		const transformedClients = clients.map(
-			(client): ClientData => ({
-				id: client?.id.toString(),
-				name: client['Company Name'] ?? '',
-				onboardDate: client['Onboarding Date'] ?? '',
-				services: client.Services ? client.Services.split(',') : [],
-				replyRate: 14.2,
-				replyRateChange: 2.1,
-				positiveReplies: 0,
-				positiveRepliesChange: 0,
-				bounceRate: 0,
-				bounceRateChange: -0.5,
-				emailsSent: 5967,
-				emailsSentChange: 12.3,
-				uniqueLeads: 5234,
-				uniqueLeadsChange: 8.7,
-			})
-		);
-
-		setClientData(transformedClients);
-		setLoading(false);
-	}, [clients]);
-
-	// Filter and sort clients
-	const filteredClients = clientData
-		.filter((client) => {
-			const matchesSearch = client.name
-				.toLowerCase()
-				.includes(searchTerm.toLowerCase());
-			return matchesSearch;
-		})
-		.sort((a, b) => {
-			let comparison = 0;
-			switch (sortBy) {
-				case 'name':
-					comparison = a.name.localeCompare(b.name);
-					break;
-				case 'replyRate':
-					comparison = a.replyRate - b.replyRate;
-					break;
-				case 'positiveReplies':
-					comparison = a.positiveReplies - b.positiveReplies;
-					break;
-				case 'bounceRate':
-					comparison = a.bounceRate - b.bounceRate;
-					break;
-				case 'emailsSent':
-					comparison = a.emailsSent - b.emailsSent;
-					break;
-			}
-			return sortOrder === 'asc' ? comparison : -comparison;
-		});
-
-	const getChangeColor = (change: number) => {
-		return change > 0
-			? 'text-success-600'
-			: change < 0
-			? 'text-danger-600'
-			: 'text-neutral-500';
-	};
-
-	const getChangeIcon = (change: number) => {
-		return change > 0 ? ArrowUpIcon : change < 0 ? ArrowDownIcon : null;
-	};
+	// Use the data directly from the API (filtering and sorting handled by API)
+	const filteredClients = clientData;
 
 	const handleClientClick = (clientId: string) => {
 		router.push(`/clients/${clientId}`);
@@ -168,7 +129,7 @@ export default function ClientsList() {
 								Clients
 							</h2>
 							<p className="text-sm text-gray-600 mt-1">
-								{filteredClients.length} of {clients.length} clients
+								{filteredClients.length} clients
 							</p>
 						</div>
 
@@ -294,7 +255,6 @@ export default function ClientsList() {
 						</thead>
 						<tbody className="bg-white/50 divide-y divide-primary-100">
 							{filteredClients.map((client, index) => {
-								const ChangeIcon = getChangeIcon(client.replyRateChange);
 								return (
 									<tr
 										key={client.id}
@@ -326,45 +286,15 @@ export default function ClientsList() {
 												<span className="text-sm text-gray-900">
 													{formatNumber(client.emailsSent)}
 												</span>
-												{(() => {
-													const Icon = getChangeIcon(client.emailsSentChange);
-													return (
-														Icon && (
-															<Icon
-																className={`h-3 w-3 ${getChangeColor(
-																	client.emailsSentChange
-																)}`}
-															/>
-														)
-													);
-												})()}
-												<span
-													className={`text-xs ${getChangeColor(
-														client.emailsSentChange
-													)}`}
-												>
-													{Math.abs(client.emailsSentChange).toFixed(1)}%
-												</span>
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="flex items-center space-x-2">
 												<span className="text-sm font-medium text-gray-900">
-													{client.replyRate.toFixed(1)}%
+													{client.replies}
 												</span>
-												{ChangeIcon && (
-													<ChangeIcon
-														className={`h-3 w-3 ${getChangeColor(
-															client.replyRateChange
-														)}`}
-													/>
-												)}
-												<span
-													className={`text-xs ${getChangeColor(
-														client.replyRateChange
-													)}`}
-												>
-													{Math.abs(client.replyRateChange).toFixed(1)}%
+												<span className={`text-xs text-gray-500`}>
+													{Math.abs(client.replyRate).toFixed(2)}%
 												</span>
 											</div>
 										</td>
@@ -373,52 +303,18 @@ export default function ClientsList() {
 												<span className="text-sm font-medium text-gray-900">
 													{formatNumber(client.positiveReplies)}
 												</span>
-												{(() => {
-													const Icon = getChangeIcon(
-														client.positiveRepliesChange
-													);
-													return (
-														Icon && (
-															<Icon
-																className={`h-3 w-3 ${getChangeColor(
-																	client.positiveRepliesChange
-																)}`}
-															/>
-														)
-													);
-												})()}
-												<span
-													className={`text-xs ${getChangeColor(
-														client.positiveRepliesChange
-													)}`}
-												>
-													{Math.abs(client.positiveRepliesChange).toFixed(1)}%
+												<span className={`text-xs text-success-500`}>
+													{Math.abs(client.positiveReplyRate).toFixed(2)}%
 												</span>
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="flex items-center space-x-2">
 												<span className="text-sm text-gray-900">
-													{client.bounceRate.toFixed(1)}%
+													{client.bounces}
 												</span>
-												{(() => {
-													const Icon = getChangeIcon(client.bounceRateChange);
-													return (
-														Icon && (
-															<Icon
-																className={`h-3 w-3 ${getChangeColor(
-																	client.bounceRateChange
-																)}`}
-															/>
-														)
-													);
-												})()}
-												<span
-													className={`text-xs ${getChangeColor(
-														client.bounceRateChange
-													)}`}
-												>
-													{Math.abs(client.bounceRateChange).toFixed(1)}%
+												<span className={`text-xs text-danger-500`}>
+													{Math.abs(client.bounceRate).toFixed(1)}%
 												</span>
 											</div>
 										</td>
