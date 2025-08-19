@@ -26,7 +26,7 @@ import {
 	ExclamationTriangleIcon as ExclamationTriangleSolidIcon,
 } from '@heroicons/react/24/solid';
 import { formatPercentage, formatNumber } from '@/lib/utils';
-import { TimeSeriesChart, PlatformBreakdown } from './ChartComponents';
+// import { TimeSeriesChart, PlatformBreakdown } from './ChartComponents';
 import DateRangeFilter from '../Common/DatePicker';
 
 interface ExecutiveOverviewProps {
@@ -523,11 +523,11 @@ export default function ExecutiveOverview({
 							Performance Timeline
 						</h3>
 					</div>
-					<TimeSeriesChart
+					{/* <TimeSeriesChart
 						data={[]}
 						selectedMetrics={selectedMetrics}
 						onMetricToggle={handleMetricToggle}
-					/>
+					/> */}
 				</div>
 
 				{/* Platform Breakdown */}
@@ -535,7 +535,7 @@ export default function ExecutiveOverview({
 					<h3 className="text-lg font-semibold text-gray-900 mb-4">
 						Platform Breakdown
 					</h3>
-					<PlatformBreakdown
+					{/* <PlatformBreakdown
 						data={[
 							{
 								platform: 'Instantly',
@@ -556,7 +556,7 @@ export default function ExecutiveOverview({
 								value: 2009,
 							},
 						]}
-					/>
+					/> */}
 				</div>
 			</div>
 
