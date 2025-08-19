@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 			bounceRate: platform.bounce_rate || 0,
 			leads: platform.leads || 0,
 			positiveRate: platform.positive_rate || 0,
+			campaigns: platform.campaigns || 0,
 		}));
 
 		return NextResponse.json({

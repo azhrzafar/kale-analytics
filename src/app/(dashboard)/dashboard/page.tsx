@@ -2,7 +2,6 @@
 
 import React from 'react';
 import ExecutiveOverview from '@/components/Dashboard/ExecutiveOverview';
-import DateRangeFilter from '@/components/Common/DatePicker';
 import { useDateFilter } from '@/lib/appContext';
 
 export default function DashboardPage() {
@@ -10,10 +9,6 @@ export default function DashboardPage() {
 
 	return (
 		<div className="space-y-6 lg:space-y-8 min-h-[calc(70vh)]">
-			{/* <div className="flex justify-end gap-4 items-center mb-6 lg:mb-8">
-				<DateRangeFilter />
-			</div> */}
-
 			<div className="animate-fade-in flex flex-col gap-6">
 				<ExecutiveOverview
 					timeFilter={dateFilter.range}

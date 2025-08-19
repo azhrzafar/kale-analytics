@@ -173,6 +173,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 
+
 -- Individual platform functions to avoid timeout
 CREATE OR REPLACE FUNCTION get_bison_performance()
 RETURNS TABLE (
@@ -182,7 +183,8 @@ RETURNS TABLE (
     reply_rate numeric,
     positive_rate numeric,
     bounce_rate numeric,
-    leads bigint
+    leads bigint,
+    campaigns bigint
 )
 SECURITY DEFINER
 SET search_path = public
@@ -201,7 +203,8 @@ BEGIN
         END as reply_rate,
         get_positive_replies_rate('bison') as positive_rate,
         get_bounced_rate('bison') as bounce_rate,
-        (SELECT COUNT(DISTINCT lead_email) FROM bison_sends) as leads;
+        (SELECT COUNT(DISTINCT lead_email) FROM bison_sends) as leads,
+        (Select count (*) from bison_campaigns) as campaigns;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
@@ -213,7 +216,8 @@ RETURNS TABLE (
     reply_rate numeric,
     positive_rate numeric,
     bounce_rate numeric,
-    leads bigint
+    leads bigint,
+    campaigns bigint
 )
 SECURITY DEFINER
 SET search_path = public
@@ -232,7 +236,8 @@ BEGIN
         END as reply_rate,
         get_positive_replies_rate('instantly') as positive_rate,
         get_bounced_rate('instantly') as bounce_rate,
-        (SELECT COUNT(DISTINCT instantly_lead_email) FROM instantly_sends) as leads;
+        (SELECT COUNT(DISTINCT instantly_lead_email) FROM instantly_sends) as leads,
+        (Select count (*) from instantly_campaigns) as campaigns;
 END;
 $$ LANGUAGE plpgsql STABLE;
 

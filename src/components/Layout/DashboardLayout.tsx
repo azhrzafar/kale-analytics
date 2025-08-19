@@ -35,14 +35,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	}, [mobileMenuOpen]);
 
 	const handleTabClick = () => {
-		setMobileMenuOpen(false); // Close sidebar when tab is clicked
+		setMobileMenuOpen(false);
 	};
 
 	const isActiveTab = (href: string) => {
 		if (href === '/dashboard') {
 			return pathname === '/dashboard' || pathname === '/';
 		}
-		return pathname === href;
+		return pathname === href || pathname.includes(href);
 	};
 
 	return (

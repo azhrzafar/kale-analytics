@@ -59,6 +59,13 @@ export default function PlatformPerformance({
 						</div>
 						<div className="space-y-3">
 							<div className="flex justify-between">
+								<span className="text-sm text-gray-600">Campaigns:</span>
+								<span className="text-sm font-medium">
+									{formatNumber(platform.campaigns)}
+								</span>
+							</div>
+
+							<div className="flex justify-between">
 								<span className="text-sm text-gray-600">Sends:</span>
 								<span className="text-sm font-medium">
 									{formatNumber(platform.sends)}
