@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
 			leads: platform.leads || 0,
 			positiveRate: platform.positive_rate || 0,
 			campaigns: platform.campaigns || 0,
+			positive: platform.positive || 0,
+			bounces: platform.bounces || 0,
 		}));
 
 		return NextResponse.json({

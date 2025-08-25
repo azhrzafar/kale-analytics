@@ -19,6 +19,8 @@ export interface PlatformData {
 	bounceRate: number;
 	leads: number;
 	campaigns: number;
+	positive: number;
+	bounces: number;
 }
 
 export interface ClientData {

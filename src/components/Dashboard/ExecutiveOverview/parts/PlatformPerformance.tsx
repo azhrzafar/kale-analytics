@@ -101,8 +101,14 @@ export default function PlatformPerformance({
 							</div>
 							<div className="flex justify-between">
 								<span className="text-sm text-gray-600">Reply Rate:</span>
+								<span className="text-sm font-medium">
+									{platform.replyRate?.toFixed(2)}%
+								</span>
+							</div>
+							<div className="flex justify-between">
+								<span className="text-sm text-gray-600">Positive Replies:</span>
 								<span className="text-sm font-medium text-success-600">
-									{platform.replyRate.toFixed(2)}%
+									{platform.positive?.toFixed(0)}
 								</span>
 							</div>
 							<div className="flex justify-between text-sm">
@@ -112,9 +118,15 @@ export default function PlatformPerformance({
 								</span>
 							</div>
 							<div className="flex justify-between">
+								<span className="text-sm text-gray-600">Bounces:</span>
+								<span className="text-sm font-medium text-warning-600">
+									{platform.bounces?.toFixed(0)}
+								</span>
+							</div>
+							<div className="flex justify-between">
 								<span className="text-sm text-gray-600">Bounce Rate:</span>
 								<span className="text-sm font-medium text-warning-600">
-									{platform.bounceRate.toFixed(2)}%
+									{platform.bounceRate?.toFixed(2)}%
 								</span>
 							</div>
 						</div>
