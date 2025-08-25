@@ -26,19 +26,7 @@ export const tabs = [
 		icon: EnvelopeIcon,
 		href: '/campaigns',
 	},
-	{
-		id: 'campaign-analytics',
-		name: 'Campaign Analytics',
-		icon: ChartBarIcon,
-		href: '/campaign-analytics',
-	},
 
-	{
-		id: 'deliverability',
-		name: 'Deliverability',
-		icon: ShieldCheckIcon,
-		href: '/deliverability',
-	},
 	{ id: 'users', name: 'Users', icon: UsersIcon, href: '/users' },
 	{ id: 'settings', name: 'Settings', icon: Cog6ToothIcon, href: '/settings' },
 ];

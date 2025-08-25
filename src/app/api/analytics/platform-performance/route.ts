@@ -9,33 +9,38 @@ export async function GET(request: NextRequest) {
 		const clientId = searchParams.get('clientId');
 		const platform = searchParams.get('platform');
 
-		// Get platform performance data using individual RPC functions
-		const [bisonResult, instantlyResult] = await Promise.all([
-			supabase.rpc('get_bison_performance'),
-			supabase.rpc('get_instantly_performance'),
-		]);
+		// Build args for the filtered platform comparison function
+		const args: Record<string, any> = {};
+		if (startDate) args.start_date = new Date(startDate);
+		if (endDate) args.end_date = new Date(endDate);
+		if (clientId && clientId !== 'all')
+			args.client_id_filter = parseInt(clientId);
 
-		// Check for errors
-		if (bisonResult.error) {
-			console.error('Error fetching Bison data:', bisonResult.error);
+		// Use the new filtered platform comparison function from materialized views
+		const { data: platformData, error } = await supabase.rpc(
+			'get_platform_comparison_filtered',
+			args
+		);
+
+		if (error) {
+			console.error('Error fetching platform performance data:', error);
+			return NextResponse.json(
+				{ success: false, error: error.message },
+				{ status: 500 }
+			);
 		}
-		if (instantlyResult.error) {
-			console.error('Error fetching Instantly data:', instantlyResult.error);
-		}
-		// Consolidate all platform data (and optionally filter by a selected platform)
-		let allPlatformData = [
-			...(bisonResult.data || []),
-			...(instantlyResult.data || []),
-		];
+
+		// Filter by platform if specified (client-side filtering for consistency)
+		let filteredPlatformData = platformData || [];
 		if (platform && platform !== 'all') {
 			const normalized = platform.toLowerCase();
-			allPlatformData = allPlatformData.filter((p: any) =>
+			filteredPlatformData = filteredPlatformData.filter((p: any) =>
 				(p.platform || '').toString().toLowerCase().includes(normalized)
 			);
 		}
 
 		// Transform data to match the expected format
-		const formattedPlatformData = allPlatformData.map((platform: any) => ({
+		const formattedPlatformData = filteredPlatformData.map((platform: any) => ({
 			platform: platform.platform,
 			sends: platform.sends || 0,
 			replies: platform.replies || 0,
@@ -49,9 +54,11 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json({
 			success: true,
 			data: formattedPlatformData,
-			rawData: {
-				bison: bisonResult.data,
-				instantly: instantlyResult.data,
+			filters: {
+				startDate,
+				endDate,
+				clientId,
+				platform,
 			},
 			timestamp: new Date().toISOString(),
 		});

@@ -126,10 +126,7 @@ export default function KPICards({ kpiData, loading }: KPICardsProps) {
 							</div>
 							<div
 								className={`flex items-center space-x-1 ${getChangeColor(
-									metric.changeType ??
-										(metric.change && metric.change > 0
-											? 'positive'
-											: 'negative')
+									metric.label === 'Bounce Count' ? 'negative' : 'positive'
 								)}`}
 							>
 								{metric.changeType && <ChangeIcon className="h-3 w-3" />}

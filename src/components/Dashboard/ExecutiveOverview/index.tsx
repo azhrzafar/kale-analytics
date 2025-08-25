@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import DateRangeFilter from '../../Common/DatePicker';
 import { useClients } from '@/lib/hooks/useClients';
 import {
@@ -12,18 +11,15 @@ import {
 	QuickActions,
 } from './parts';
 
-import { KPIMetric, ClientData, AlertData, PlatformData } from './utils/types';
+import { KPIMetric, AlertData, PlatformData } from './utils/types';
 import { parseKpiData } from './utils/misc';
+import { DateRange } from '@/lib/types';
+import { useDateFilter } from '@/lib/appContext';
 
-interface ExecutiveOverviewProps {
-	timeFilter: any;
-	preset?: string;
-}
-
-export default function ExecutiveOverview({
-	timeFilter,
-	preset,
-}: ExecutiveOverviewProps) {
+export default function ExecutiveOverview() {
+	const {
+		dateFilter: { preset, range },
+	} = useDateFilter();
 	const [selectedClient, setSelectedClient] = useState('all');
 	const [selectedPlatform, setSelectedPlatform] = useState('all');
 
@@ -41,10 +37,20 @@ export default function ExecutiveOverview({
 	const { clients, loading: clientsLoading } = useClients();
 
 	// Fetch KPI data
-	const fetchKpiData = async (platform: string = selectedPlatform) => {
+	const fetchKpiData = async ({
+		platform,
+		client,
+		date,
+	}: {
+		platform: string;
+		client: string;
+		date: DateRange;
+	}) => {
 		setKpiLoading(true);
 		try {
-			const response = await fetch(`/api/analytics/kpi?platform=${platform}`);
+			const response = await fetch(
+				`/api/analytics/kpi?platform=${platform}&clientId=${client}&startDate=${date.startDate}&endDate=${date.endDate}`
+			);
 			const { data } = await response.json();
 
 			setKpiData(parseKpiData(data) as KPIMetric[]);
@@ -56,12 +62,21 @@ export default function ExecutiveOverview({
 	};
 
 	// Fetch platform data
-	const fetchPlatformData = async () => {
+	const fetchPlatformData = async (
+		{
+			date,
+			client,
+		}: {
+			date: DateRange;
+			client: string;
+		} = { date: range, client: selectedClient }
+	) => {
 		setPlatformLoading(true);
 		try {
-			const response = await fetch('/api/analytics/platform-performance');
+			const response = await fetch(
+				`/api/analytics/platform-performance?startDate=${date.startDate}&endDate=${date.endDate}&clientId=${client}`
+			);
 			const { data } = await response.json();
-			console.log({ data });
 			setPlatformData(data);
 		} catch (error) {
 			console.error('Error fetching platform performance data:', error);
@@ -71,11 +86,19 @@ export default function ExecutiveOverview({
 	};
 
 	// Fetch time series data
-	const fetchTimeSeriesData = async () => {
+	const fetchTimeSeriesData = async ({
+		platform,
+		client,
+		date,
+	}: {
+		platform: string;
+		client: string;
+		date: DateRange;
+	}) => {
 		setTimeSeriesLoading(true);
 		try {
 			const response = await fetch(
-				`/api/analytics/send-volume-trends?platform=${selectedPlatform}`
+				`/api/analytics/send-volume-trends?platform=${platform}&clientId=${client}&startDate=${date.startDate}&endDate=${date.endDate}`
 			);
 			const { data } = await response.json();
 			setTimeSeriesData(data);
@@ -122,54 +145,30 @@ export default function ExecutiveOverview({
 		}
 	};
 
-	// Load all data on component mount
+	// Load KPI and time series data when filters change
 	useEffect(() => {
-		fetchKpiData();
-		fetchPlatformData();
-		fetchTimeSeriesData();
+		fetchKpiData({
+			platform: selectedPlatform,
+			client: selectedClient,
+			date: range,
+		});
+
+		fetchTimeSeriesData({
+			platform: selectedPlatform,
+			client: selectedClient,
+			date: range,
+		});
+	}, [range, preset, selectedClient, selectedPlatform]);
+
+	// Load platform data only when date range or client changes
+	useEffect(() => {
+		fetchPlatformData({ date: range, client: selectedClient });
+	}, [range, selectedClient]);
+
+	// Load alerts on component mount
+	useEffect(() => {
 		fetchAlerts();
-	}, [timeFilter, preset]);
-
-	// Refetch when selected platform changes
-	useEffect(() => {
-		fetchKpiData(selectedPlatform);
-		fetchTimeSeriesData();
-	}, [selectedPlatform]);
-
-	// Realtime updates for KPI and Platform panels
-	useEffect(() => {
-		const channel = supabase
-			.channel('realtime-analytics')
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'bison_sends' },
-				() => {
-					fetchKpiData(selectedPlatform);
-					fetchPlatformData();
-				}
-			)
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'instantly_sends' },
-				() => {
-					fetchKpiData(selectedPlatform);
-					fetchPlatformData();
-				}
-			)
-			.on(
-				'postgres_changes',
-				{ event: '*', schema: 'public', table: 'missive_replies' },
-				() => {
-					fetchKpiData(selectedPlatform);
-					fetchPlatformData();
-				}
-			)
-			.subscribe();
-
-		return () => {
-			supabase.removeChannel(channel);
-		};
-	}, [selectedPlatform]);
+	}, []);
 
 	return (
 		<div className="space-y-6">

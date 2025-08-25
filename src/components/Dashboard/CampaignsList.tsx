@@ -1,202 +1,168 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
 	EnvelopeIcon,
-	CalendarIcon,
-	UsersIcon,
 	MagnifyingGlassIcon,
 	ArrowUpIcon,
 	ArrowDownIcon,
 	EyeIcon,
-	ChartBarIcon,
 	CheckCircleIcon,
-	ExclamationTriangleIcon,
 	PauseIcon,
-	PlayIcon,
 	BuildingOfficeIcon,
+	ArrowPathIcon,
+	ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { formatNumber } from '@/lib/utils';
-import { SparklineChart } from './ChartComponents';
+import { useCampaigns } from '@/lib/hooks/useCampaigns';
+import { useClients } from '@/lib/hooks/useClients';
 
 interface CampaignsListProps {
 	onCampaignSelect?: (campaignId: string) => void;
 }
 
-interface CampaignData {
-	id: string;
-	name: string;
-	workspace: string;
-	owner: string;
-	platform: 'Instantly' | 'Bison' | 'Missive';
-	status: 'active' | 'paused' | 'completed' | 'draft';
-	createdDate: string;
-	lastModified: string;
-	sent: number;
-	replies: number;
-	positiveReplies: number;
-	replyRate: number;
-	positiveRate: number;
-	bounceRate: number;
-	sparklineData: number[];
-}
-
 export default function CampaignsList({
 	onCampaignSelect,
 }: CampaignsListProps) {
-	const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [searchTerm, setSearchTerm] = useState('');
-	const [statusFilter, setStatusFilter] = useState<string>('all');
-	const [platformFilter, setPlatformFilter] = useState<string>('all');
-	const [sortBy, setSortBy] = useState<
-		| 'name'
-		| 'replyRate'
-		| 'positiveRate'
-		| 'bounceRate'
-		| 'sent'
-		| 'createdDate'
-	>('replyRate');
-	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 	const router = useRouter();
+	const { campaigns, loading, error, refreshCampaigns, updateCampaignStatus } =
+		useCampaigns();
+	const { clients, loading: clientsLoading } = useClients();
 
-	// Mock data for demonstration
-	useEffect(() => {
-		setLoading(true);
+	// Local state for frontend filtering
+	const [searchTerm, setSearchTerm] = useState('');
+	const [statusFilter, setStatusFilter] = useState('all');
+	const [platformFilter, setPlatformFilter] = useState('all');
+	const [selectedClient, setSelectedClient] = useState('all');
+	const [sortBy, setSortBy] = useState('replyRate');
+	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-		// Simulate API call
-		setTimeout(() => {
-			setCampaigns([
-				{
-					id: '1',
-					name: 'Q1 Tech Outreach',
-					workspace: 'TechCorp Solutions',
-					owner: 'John Smith',
-					platform: 'Instantly',
-					status: 'active',
-					createdDate: '2024-01-10',
-					lastModified: '2024-01-20',
-					sent: 1250,
-					replies: 187,
-					positiveReplies: 134,
-					replyRate: 15.0,
-					positiveRate: 71.7,
-					bounceRate: 2.1,
-					sparklineData: [120, 135, 142, 128, 156, 143, 150],
-				},
-				{
-					id: '2',
-					name: 'Developer Recruitment',
-					workspace: 'TechCorp Solutions',
-					owner: 'Sarah Johnson',
-					platform: 'Bison',
-					status: 'active',
-					createdDate: '2024-01-12',
-					lastModified: '2024-01-18',
-					sent: 890,
-					replies: 98,
-					positiveReplies: 67,
-					replyRate: 11.0,
-					positiveRate: 68.4,
-					bounceRate: 3.2,
-					sparklineData: [85, 92, 78, 95, 88, 102, 89],
-				},
-				{
-					id: '3',
-					name: 'Startup Partnership',
-					workspace: 'TechCorp Solutions',
-					owner: 'Mike Wilson',
-					platform: 'Instantly',
-					status: 'paused',
-					createdDate: '2024-01-15',
-					lastModified: '2024-01-15',
-					sent: 567,
-					replies: 45,
-					positiveReplies: 28,
-					replyRate: 7.9,
-					positiveRate: 62.2,
-					bounceRate: 4.1,
-					sparklineData: [52, 48, 61, 55, 49, 58, 53],
-				},
-				{
-					id: '4',
-					name: 'Enterprise Sales',
-					workspace: 'Global Innovations',
-					owner: 'Lisa Chen',
-					platform: 'Bison',
-					status: 'active',
-					createdDate: '2024-01-08',
-					lastModified: '2024-01-19',
-					sent: 2100,
-					replies: 315,
-					positiveReplies: 245,
-					replyRate: 15.0,
-					positiveRate: 77.8,
-					bounceRate: 1.8,
-					sparklineData: [180, 195, 210, 185, 220, 205, 215],
-				},
-				{
-					id: '5',
-					name: 'Product Launch',
-					workspace: 'StartupXYZ',
-					owner: 'Alex Rodriguez',
-					platform: 'Missive',
-					status: 'completed',
-					createdDate: '2024-01-05',
-					lastModified: '2024-01-16',
-					sent: 750,
-					replies: 89,
-					positiveReplies: 62,
-					replyRate: 11.9,
-					positiveRate: 69.7,
-					bounceRate: 2.5,
-					sparklineData: [65, 72, 68, 75, 70, 78, 73],
-				},
-			]);
-			setLoading(false);
-		}, 1000);
-	}, []);
+	// Filter and sort campaigns on frontend
+	const filteredAndSortedCampaigns = useMemo(() => {
+		let filtered = campaigns;
 
-	// Filter and sort campaigns
-	const filteredCampaigns = campaigns
-		.filter((campaign) => {
-			const matchesSearch =
-				campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				campaign.workspace.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				campaign.owner.toLowerCase().includes(searchTerm.toLowerCase());
-			const matchesStatus =
-				statusFilter === 'all' || campaign.status === statusFilter;
-			const matchesPlatform =
-				platformFilter === 'all' || campaign.platform === platformFilter;
-			return matchesSearch && matchesStatus && matchesPlatform;
-		})
-		.sort((a, b) => {
-			let comparison = 0;
-			switch (sortBy) {
-				case 'name':
-					comparison = a.name.localeCompare(b.name);
-					break;
-				case 'replyRate':
-					comparison = a.replyRate - b.replyRate;
-					break;
-				case 'positiveRate':
-					comparison = a.positiveRate - b.positiveRate;
-					break;
-				case 'bounceRate':
-					comparison = a.bounceRate - b.bounceRate;
-					break;
-				case 'sent':
-					comparison = a.sent - b.sent;
-					break;
-				case 'createdDate':
-					comparison =
-						new Date(a.createdDate).getTime() -
-						new Date(b.createdDate).getTime();
-					break;
+		// Apply search filter
+		if (searchTerm) {
+			filtered = filtered.filter(
+				(campaign) =>
+					campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					campaign.campaignId
+						.toLowerCase()
+						.includes(searchTerm.toLowerCase()) ||
+					campaign.workspace.toLowerCase().includes(searchTerm.toLowerCase())
+			);
+		}
+
+		// Apply status filter
+		if (statusFilter !== 'all') {
+			filtered = filtered.filter(
+				(campaign) => campaign.status === statusFilter
+			);
+		}
+
+		// Apply platform filter
+		if (platformFilter !== 'all') {
+			filtered = filtered.filter(
+				(campaign) => campaign.platform === platformFilter
+			);
+		}
+
+		// Apply client filter
+		if (selectedClient !== 'all') {
+			filtered = filtered.filter(
+				(campaign) => campaign.client_id === selectedClient
+			);
+		}
+
+		// Apply sorting
+		filtered.sort((a, b) => {
+			let aValue: any = a[sortBy as keyof typeof a];
+			let bValue: any = b[sortBy as keyof typeof b];
+
+			// Handle nested properties
+			if (sortBy === 'replyRate') {
+				aValue = a.replyRate;
+				bValue = b.replyRate;
+			} else if (sortBy === 'positiveRate') {
+				aValue = a.positiveRate;
+				bValue = b.positiveRate;
+			} else if (sortBy === 'bounceRate') {
+				aValue = a.bounceRate;
+				bValue = b.bounceRate;
 			}
-			return sortOrder === 'asc' ? comparison : -comparison;
+
+			if (typeof aValue === 'string') {
+				aValue = aValue.toLowerCase();
+				bValue = bValue.toLowerCase();
+			}
+
+			if (sortOrder === 'asc') {
+				return aValue > bValue ? 1 : -1;
+			} else {
+				return aValue < bValue ? 1 : -1;
+			}
 		});
+
+		return filtered;
+	}, [
+		campaigns,
+		searchTerm,
+		statusFilter,
+		platformFilter,
+		selectedClient,
+		sortBy,
+		sortOrder,
+	]);
+
+	// Handle search
+	const handleSearch = (value: string) => {
+		setSearchTerm(value);
+	};
+
+	// Handle status filter
+	const handleStatusFilter = (value: string) => {
+		setStatusFilter(value);
+	};
+
+	// Handle sorting
+	const handleSort = (newSortBy: string) => {
+		if (sortBy === newSortBy) {
+			setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
+		} else {
+			setSortBy(newSortBy);
+			setSortOrder('desc');
+		}
+	};
+
+	// Handle campaign click
+	const handleCampaignClick = (campaignId: string) => {
+		if (onCampaignSelect) {
+			onCampaignSelect(campaignId);
+		} else {
+			router.push(`/campaigns/${campaignId}`);
+		}
+	};
+
+	// Handle status toggle
+	const handleStatusToggle = async (
+		campaignId: string,
+		currentStatus: string,
+		e: React.MouseEvent
+	) => {
+		e.stopPropagation();
+
+		let newStatus: 'active' | 'paused' | 'completed';
+		if (currentStatus === 'active') {
+			newStatus = 'paused';
+		} else if (currentStatus === 'paused') {
+			newStatus = 'active';
+		} else {
+			return; // Don't allow status changes for completed campaigns
+		}
+
+		await updateCampaignStatus(campaignId, newStatus);
+	};
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -213,13 +179,43 @@ export default function CampaignsList({
 		}
 	};
 
-	const handleCampaignClick = (campaignId: string) => {
-		if (onCampaignSelect) {
-			onCampaignSelect(campaignId);
-		} else {
-			router.push(`/campaigns/${campaignId}`);
+	const getStatusIcon = (status: string) => {
+		switch (status) {
+			case 'active':
+				return <CheckCircleIcon className="h-3 w-3 mr-1" />;
+			case 'paused':
+				return <PauseIcon className="h-3 w-3 mr-1" />;
+			case 'completed':
+				return <CheckCircleIcon className="h-3 w-3 mr-1" />;
+			case 'draft':
+				return <EnvelopeIcon className="h-3 w-3 mr-1" />;
+			default:
+				return <EnvelopeIcon className="h-3 w-3 mr-1" />;
 		}
 	};
+
+	if (error) {
+		return (
+			<div className="space-y-6">
+				<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 p-6">
+					<div className="text-center">
+						<ExclamationCircleIcon className="mx-auto h-12 w-12 text-red-500" />
+						<h3 className="mt-2 text-sm font-medium text-gray-900">
+							Error loading campaigns
+						</h3>
+						<p className="mt-1 text-sm text-gray-500">{error}</p>
+						<button
+							onClick={refreshCampaigns}
+							className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+						>
+							<ArrowPathIcon className="h-4 w-4 mr-2" />
+							Retry
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	if (loading) {
 		return (
@@ -257,6 +253,10 @@ export default function CampaignsList({
 		);
 	}
 
+	const truncateText = (str: string, length = 20) => {
+		return str.length > length ? str.slice(0, length) + '...' : str;
+	};
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -269,7 +269,7 @@ export default function CampaignsList({
 								Campaigns
 							</h2>
 							<p className="text-sm text-gray-600 mt-1">
-								{filteredCampaigns.length} of {campaigns.length} campaigns
+								{filteredAndSortedCampaigns.length} campaigns
 							</p>
 						</div>
 
@@ -284,16 +284,29 @@ export default function CampaignsList({
 									type="text"
 									placeholder="Search campaigns"
 									value={searchTerm}
-									onChange={(e) => setSearchTerm(e.target.value)}
+									onChange={(e) => handleSearch(e.target.value)}
 									className="pl-8 pr-4 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 placeholder-gray-400 focus:outline-none transition-all duration-200"
 									aria-label="Search campaigns"
 								/>
 							</div>
 
+							<select
+								value={selectedClient}
+								onChange={(e) => setSelectedClient(e.target.value)}
+								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 focus:outline-none transition-all duration-200"
+							>
+								<option value="all">All Clients</option>
+								{clients.map((client) => (
+									<option key={client.id} value={client.id}>
+										{client['Company Name']}
+									</option>
+								))}
+								{clientsLoading && <div>Loading...</div>}
+							</select>
 							{/* Status Filter */}
 							<select
 								value={statusFilter}
-								onChange={(e) => setStatusFilter(e.target.value)}
+								onChange={(e) => handleStatusFilter(e.target.value)}
 								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 focus:outline-none transition-all duration-200"
 							>
 								<option value="all">All Status</option>
@@ -304,16 +317,31 @@ export default function CampaignsList({
 							</select>
 
 							{/* Platform Filter */}
-							<select
-								value={platformFilter}
-								onChange={(e) => setPlatformFilter(e.target.value)}
-								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 focus:outline-none transition-all duration-200"
+
+							<div className="flex bg-white/80 backdrop-blur-sm border border-primary-200 rounded-sm p-1">
+								{['all', 'Instantly', 'Bison'].map((platform) => (
+									<button
+										key={platform}
+										onClick={() => setPlatformFilter(platform)}
+										className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors duration-200 ${
+											platformFilter === platform
+												? 'bg-primary-100 text-primary-700 shadow-sm'
+												: 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+										}`}
+									>
+										{platform === 'all' ? 'All' : platform}
+									</button>
+								))}
+							</div>
+
+							{/* Refresh Button */}
+							<button
+								onClick={refreshCampaigns}
+								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 hover:bg-gray-50 focus:outline-none transition-all duration-200"
+								title="Refresh campaigns"
 							>
-								<option value="all">All Platforms</option>
-								<option value="Instantly">Instantly</option>
-								<option value="Bison">Bison</option>
-								<option value="Missive">Missive</option>
-							</select>
+								<ArrowPathIcon className="h-4 w-4" />
+							</button>
 						</div>
 					</div>
 				</div>
@@ -334,15 +362,65 @@ export default function CampaignsList({
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
 									Platform
 								</th>
+
 								<th
-									onClick={() => {
-										if (sortBy === 'replyRate') {
-											setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-										} else {
-											setSortBy('replyRate');
-											setSortOrder('desc');
-										}
-									}}
+									onClick={() => handleSort('sent')}
+									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
+								>
+									<div className="flex items-center">
+										Sent
+										{sortBy === 'sent' &&
+											(sortOrder === 'asc' ? (
+												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
+											) : (
+												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
+											))}
+									</div>
+								</th>
+								<th
+									onClick={() => handleSort('leads')}
+									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
+								>
+									<div className="flex items-center">
+										Leads
+										{sortBy === 'leads' &&
+											(sortOrder === 'asc' ? (
+												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
+											) : (
+												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
+											))}
+									</div>
+								</th>
+								<th
+									onClick={() => handleSort('opens')}
+									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
+								>
+									<div className="flex items-center">
+										Opens
+										{sortBy === 'opens' &&
+											(sortOrder === 'asc' ? (
+												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
+											) : (
+												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
+											))}
+									</div>
+								</th>
+								<th
+									onClick={() => handleSort('replies')}
+									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
+								>
+									<div className="flex items-center">
+										Replies
+										{sortBy === 'replies' &&
+											(sortOrder === 'asc' ? (
+												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
+											) : (
+												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
+											))}
+									</div>
+								</th>
+								<th
+									onClick={() => handleSort('replyRate')}
 									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
 								>
 									<div className="flex items-center">
@@ -356,14 +434,21 @@ export default function CampaignsList({
 									</div>
 								</th>
 								<th
-									onClick={() => {
-										if (sortBy === 'positiveRate') {
-											setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-										} else {
-											setSortBy('positiveRate');
-											setSortOrder('desc');
-										}
-									}}
+									onClick={() => handleSort('positiveRate')}
+									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
+								>
+									<div className="flex items-center">
+										Positive
+										{sortBy === 'positiveRate' &&
+											(sortOrder === 'asc' ? (
+												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
+											) : (
+												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
+											))}
+									</div>
+								</th>
+								<th
+									onClick={() => handleSort('positiveRate')}
 									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
 								>
 									<div className="flex items-center">
@@ -377,14 +462,22 @@ export default function CampaignsList({
 									</div>
 								</th>
 								<th
-									onClick={() => {
-										if (sortBy === 'bounceRate') {
-											setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-										} else {
-											setSortBy('bounceRate');
-											setSortOrder('asc');
-										}
-									}}
+									onClick={() => handleSort('bounced')}
+									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
+								>
+									<div className="flex items-center">
+										Bounced
+										{sortBy === 'bounced' &&
+											(sortOrder === 'asc' ? (
+												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
+											) : (
+												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
+											))}
+									</div>
+								</th>
+
+								<th
+									onClick={() => handleSort('bounceRate')}
 									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
 								>
 									<div className="flex items-center">
@@ -397,44 +490,22 @@ export default function CampaignsList({
 											))}
 									</div>
 								</th>
-								<th
-									onClick={() => {
-										if (sortBy === 'sent') {
-											setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-										} else {
-											setSortBy('sent');
-											setSortOrder('desc');
-										}
-									}}
-									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
-								>
-									<div className="flex items-center">
-										Sent
-										{sortBy === 'sent' &&
-											(sortOrder === 'asc' ? (
-												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
-											) : (
-												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
-											))}
-									</div>
-								</th>
+
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
 									Status
 								</th>
-								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
-									Trend
-								</th>
+
 								<th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
 									Actions
 								</th>
 							</tr>
 						</thead>
 						<tbody className="bg-white/50 divide-y divide-primary-100">
-							{filteredCampaigns.map((campaign, index) => (
+							{filteredAndSortedCampaigns.map((campaign, index) => (
 								<tr
 									key={campaign.id}
 									className="hover:bg-primary-50/50 transition-colors duration-200 cursor-pointer"
-									onClick={() => handleCampaignClick(campaign.id)}
+									onClick={() => handleCampaignClick(campaign.campaignId)}
 									style={{ animationDelay: `${index * 50}ms` }}
 								>
 									<td className="px-6 py-4 whitespace-nowrap">
@@ -444,13 +515,17 @@ export default function CampaignsList({
 													<EnvelopeIcon className="h-5 w-5 text-primary-600" />
 												</div>
 											</div>
-											<div className="ml-4">
+
+											<div className="ml-4 relative group">
 												<div className="text-sm font-medium text-gray-900">
-													{campaign.name}
+													{truncateText(campaign.name)}
 												</div>
 												<div className="text-sm text-gray-500">
-													{campaign.owner} •{' '}
-													{new Date(campaign.createdDate).toLocaleDateString()}
+													ID: {truncateText(campaign.campaignId, 10)}
+												</div>
+
+												<div className="absolute left-0 bottom-full mb-2 hidden w-max max-w-xs rounded-md bg-gray-800 px-2 py-1 text-xs text-white shadow-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-hover:block">
+													{campaign.name}
 												</div>
 											</div>
 										</div>
@@ -466,6 +541,27 @@ export default function CampaignsList({
 											{campaign.platform}
 										</span>
 									</td>
+
+									<td className="px-6 py-4 whitespace-nowrap">
+										<div className="text-sm text-gray-900">
+											{formatNumber(campaign.sent)}
+										</div>
+									</td>
+									<td className="px-6 py-4 whitespace-nowrap">
+										<div className="text-sm font-medium text-gray-900">
+											{campaign.leads}
+										</div>
+									</td>
+									<td className="px-6 py-4 whitespace-nowrap">
+										<div className="text-sm font-medium text-gray-900">
+											{formatNumber(campaign.opens)}
+										</div>
+									</td>
+									<td className="px-6 py-4 whitespace-nowrap">
+										<div className="text-sm font-medium text-gray-900">
+											{formatNumber(campaign.replies)}
+										</div>
+									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
 										<div className="text-sm font-medium text-gray-900">
 											{campaign.replyRate.toFixed(1)}%
@@ -473,7 +569,18 @@ export default function CampaignsList({
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
 										<div className="text-sm font-medium text-gray-900">
+											{campaign.positiveReplies}
+										</div>
+									</td>
+									<td className="px-6 py-4 whitespace-nowrap">
+										<div className="text-sm font-medium text-gray-900">
 											{campaign.positiveRate.toFixed(1)}%
+										</div>
+									</td>
+
+									<td className="px-6 py-4 whitespace-nowrap">
+										<div className="text-sm font-medium text-gray-900">
+											{campaign.bounceRate.toFixed(1)}
 										</div>
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">
@@ -481,39 +588,19 @@ export default function CampaignsList({
 											{campaign.bounceRate.toFixed(1)}%
 										</div>
 									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm text-gray-900">
-											{formatNumber(campaign.sent)}
-										</div>
-									</td>
+
 									<td className="px-6 py-4 whitespace-nowrap">
 										<span
 											className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
 												campaign.status
 											)}`}
 										>
-											{campaign.status === 'active' && (
-												<CheckCircleIcon className="h-3 w-3 mr-1" />
-											)}
-											{campaign.status === 'paused' && (
-												<PauseIcon className="h-3 w-3 mr-1" />
-											)}
-											{campaign.status === 'completed' && (
-												<CheckCircleIcon className="h-3 w-3 mr-1" />
-											)}
-											{campaign.status === 'draft' && (
-												<EnvelopeIcon className="h-3 w-3 mr-1" />
-											)}
+											{getStatusIcon(campaign.status)}
 											{campaign.status.charAt(0).toUpperCase() +
 												campaign.status.slice(1)}
 										</span>
 									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<SparklineChart
-											data={campaign.sparklineData}
-											color="bg-primary-500"
-										/>
-									</td>
+
 									<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 										<div className="flex justify-end space-x-2">
 											<button
@@ -526,39 +613,6 @@ export default function CampaignsList({
 											>
 												<EyeIcon className="h-4 w-4" />
 											</button>
-											<button
-												className="text-neutral-600 hover:text-neutral-900 transition-colors duration-200"
-												title="View analytics"
-												onClick={(e) => {
-													e.stopPropagation();
-													router.push(`/campaigns/${campaign.id}/analytics`);
-												}}
-											>
-												<ChartBarIcon className="h-4 w-4" />
-											</button>
-											{campaign.status === 'active' ? (
-												<button
-													className="text-warning-600 hover:text-warning-900 transition-colors duration-200"
-													title="Pause campaign"
-													onClick={(e) => {
-														e.stopPropagation();
-														// Handle pause action
-													}}
-												>
-													<PauseIcon className="h-4 w-4" />
-												</button>
-											) : (
-												<button
-													className="text-success-600 hover:text-success-900 transition-colors duration-200"
-													title="Resume campaign"
-													onClick={(e) => {
-														e.stopPropagation();
-														// Handle resume action
-													}}
-												>
-													<PlayIcon className="h-4 w-4" />
-												</button>
-											)}
 										</div>
 									</td>
 								</tr>
@@ -568,14 +622,17 @@ export default function CampaignsList({
 				</div>
 
 				{/* Empty State */}
-				{filteredCampaigns.length === 0 && (
+				{filteredAndSortedCampaigns.length === 0 && (
 					<div className="text-center py-12 bg-primary-50/30">
 						<EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
 						<h3 className="mt-2 text-sm font-medium text-gray-900">
 							No campaigns found
 						</h3>
 						<p className="mt-1 text-sm text-gray-500">
-							{searchTerm || statusFilter !== 'all' || platformFilter !== 'all'
+							{searchTerm ||
+							statusFilter !== 'all' ||
+							platformFilter !== 'all' ||
+							selectedClient !== 'all'
 								? 'Try adjusting your search or filter criteria.'
 								: 'Get started by creating a new campaign.'}
 						</p>

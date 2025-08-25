@@ -36,139 +36,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- ===================================================================
--- MATERIALIZED VIEW FOR CLIENT STATISTICS
--- ===================================================================
-
--- Materialized view to cache expensive client statistics aggregation
-CREATE MATERIALIZED VIEW IF NOT EXISTS client_statistics_mv AS
-WITH email_stats AS (
-    SELECT 
-        l.client_id,
-        SUM(CASE WHEN bs."Lead_id" IS NOT NULL THEN 1 ELSE 0 END) as bison_sends,
-        SUM(CASE WHEN ins."Lead_id" IS NOT NULL THEN 1 ELSE 0 END) as instantly_sends
-    FROM "Leads" l
-    LEFT JOIN bison_sends bs ON bs."Lead_id" = l.id
-    LEFT JOIN instantly_sends ins ON ins."Lead_id" = l.id
-    GROUP BY l.client_id
-),
-reply_stats AS (
-    SELECT 
-        l.client_id,
-        COUNT(mr.id) as total_replies,
-        COUNT(mr.id) FILTER (
-            WHERE TRIM(LOWER(mr.sentiment)) IN (
-                'meeting request', 'positive', 'interested',
-                'long-term prospect', 'long-term prospect (ltp)',
-                'info request', 'referral'
-            )
-        ) as positive_replies_count,
-        COUNT(mr.id) FILTER (
-            WHERE TRIM(LOWER(mr.sentiment)) IN (
-                'bounce', 'soft bounce', 'hard bounce', 'invalid inbox'
-            )
-        ) as bounces_count
-    FROM "Leads" l
-    INNER JOIN missive_replies mr ON mr.lead_id = l.id
-    GROUP BY l.client_id
-),
-lead_stats AS (
-    SELECT 
-        l.client_id,
-        COUNT(DISTINCT l.internal_id) as unique_leads_count
-    FROM "Leads" l
-    GROUP BY l.client_id
-)
-SELECT 
-    c.id as client_id,
-    c."Company Name" as client_name,
-    c."Domain" as client_domain,
-    c."Onboarding Date" as client_onboard_date,
-    c."Services" as client_services,
-    COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0) as emails_sent,
-    COALESCE(rs.total_replies, 0) as replies,
-    CASE 
-        WHEN (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0)) > 0 
-        THEN ROUND((COALESCE(rs.total_replies, 0)::numeric / 
-                   (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0))::numeric) * 100, 2)
-        ELSE 0::numeric 
-    END as reply_rate,
-    COALESCE(rs.positive_replies_count, 0) as positive_replies,
-    CASE 
-        WHEN (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0)) > 0 
-        THEN ROUND((COALESCE(rs.positive_replies_count, 0)::numeric / 
-                   (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0))::numeric) * 100, 2)
-        ELSE 0::numeric 
-    END as positive_reply_rate,
-    COALESCE(rs.bounces_count, 0) as bounces,
-    CASE 
-        WHEN (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0)) > 0 
-        THEN ROUND((COALESCE(rs.bounces_count, 0)::numeric / 
-                   (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0))::numeric) * 100, 2)
-        ELSE 0::numeric 
-    END as bounce_rate,
-    COALESCE(ls.unique_leads_count, 0) as unique_leads
-FROM "Clients" c
-LEFT JOIN email_stats es ON es.client_id = c.id
-LEFT JOIN reply_stats rs ON rs.client_id = c.id
-LEFT JOIN lead_stats ls ON ls.client_id = c.id;
-
--- Unique index to enable CONCURRENT refreshes
-CREATE UNIQUE INDEX IF NOT EXISTS idx_client_statistics_mv_client_id ON client_statistics_mv (client_id);
-
--- Read function backed by the MV
-CREATE OR REPLACE FUNCTION get_client_statistics_mat()
-RETURNS TABLE (
-    client_id bigint,
-    client_name text,
-    client_domain text,
-    client_onboard_date date,
-    client_services text,
-    emails_sent bigint,
-    replies bigint,
-    reply_rate numeric,
-    positive_replies bigint,
-    positive_reply_rate numeric,
-    bounces bigint,
-    bounce_rate numeric,
-    unique_leads bigint
-)
-SECURITY DEFINER
-SET search_path = public
-AS $$
-SELECT 
-    client_id,
-    client_name,
-    client_domain,
-    client_onboard_date,
-    client_services,
-    emails_sent,
-    replies,
-    reply_rate,
-    positive_replies,
-    positive_reply_rate,
-    bounces,
-    bounce_rate,
-    unique_leads
-FROM client_statistics_mv
-ORDER BY client_id;
-$$ LANGUAGE sql STABLE;
-
--- Helper to refresh the MV
-CREATE OR REPLACE FUNCTION refresh_client_statistics_mv(concurrent boolean DEFAULT true)
-RETURNS void
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-    IF concurrent THEN
-        EXECUTE 'REFRESH MATERIALIZED VIEW CONCURRENTLY client_statistics_mv';
-    ELSE
-        EXECUTE 'REFRESH MATERIALIZED VIEW client_statistics_mv';
-    END IF;
-END;
-$$ LANGUAGE plpgsql VOLATILE;
-
 -- Function to get total replies across all platforms
 CREATE OR REPLACE FUNCTION get_total_replies(platform text DEFAULT NULL)
 RETURNS bigint 
@@ -272,16 +139,16 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    total_emails bigint;
+    total_replies bigint;
     positive_replies bigint;
 BEGIN
-    total_emails := get_total_emails_sent(platform);
+    total_replies := get_total_replies(platform);
     positive_replies := get_positive_replies(platform);
 
-    IF total_emails = 0 THEN
+    IF total_replies = 0 THEN
         RETURN 0;
     ELSE
-        RETURN ROUND((positive_replies::numeric / total_emails::numeric) * 100, 2);
+        RETURN ROUND((positive_replies::numeric / total_replies::numeric) * 100, 2);
     END IF;
 END;
 $$ LANGUAGE plpgsql STABLE;
@@ -725,3 +592,90 @@ BEGIN
     ORDER BY c.id;
 END;
 $$ LANGUAGE plpgsql STABLE;
+
+
+
+
+-- ===================================================================
+-- MATERIALIZED VIEW FOR CLIENT STATISTICS
+-- ===================================================================
+
+-- Materialized view to cache expensive client statistics aggregation
+CREATE MATERIALIZED VIEW IF NOT EXISTS client_statistics_mv AS
+WITH email_stats AS (
+    SELECT 
+        l.client_id,
+        SUM(CASE WHEN bs."Lead_id" IS NOT NULL THEN 1 ELSE 0 END) as bison_sends,
+        SUM(CASE WHEN ins."Lead_id" IS NOT NULL THEN 1 ELSE 0 END) as instantly_sends
+    FROM "Leads" l
+    LEFT JOIN bison_sends bs ON bs."Lead_id" = l.id
+    LEFT JOIN instantly_sends ins ON ins."Lead_id" = l.id
+    GROUP BY l.client_id
+),
+reply_stats AS (
+    SELECT 
+        l.client_id,
+        COUNT(mr.id) as total_replies,
+        COUNT(mr.id) FILTER (
+            WHERE TRIM(LOWER(mr.sentiment)) IN (
+                'meeting request', 'positive', 'interested',
+                'long-term prospect', 'long-term prospect (ltp)',
+                'info request', 'referral'
+            )
+        ) as positive_replies_count,
+        COUNT(mr.id) FILTER (
+            WHERE TRIM(LOWER(mr.sentiment)) IN (
+                'bounce', 'soft bounce', 'hard bounce', 'invalid inbox'
+            )
+        ) as bounces_count
+    FROM "Leads" l
+    INNER JOIN missive_replies mr ON mr.lead_id = l.id
+    GROUP BY l.client_id
+),
+lead_stats AS (
+    SELECT 
+        l.client_id,
+        COUNT(DISTINCT l.internal_id) as unique_leads_count
+    FROM "Leads" l
+    GROUP BY l.client_id
+)
+SELECT 
+    c.id as client_id,
+    c."Company Name" as client_name,
+    c."Domain" as client_domain,
+    c."Onboarding Date" as client_onboard_date,
+    c."Services" as client_services,
+    COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0) as emails_sent,
+    COALESCE(rs.total_replies, 0) as replies,
+    CASE 
+        WHEN (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0)) > 0 
+        THEN ROUND((COALESCE(rs.total_replies, 0)::numeric / 
+                   (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0))::numeric) * 100, 2)
+        ELSE 0::numeric 
+    END as reply_rate,
+    COALESCE(rs.positive_replies_count, 0) as positive_replies,
+    CASE 
+        WHEN (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0)) > 0 
+        THEN ROUND((COALESCE(rs.positive_replies_count, 0)::numeric / 
+                   (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0))::numeric) * 100, 2)
+        ELSE 0::numeric 
+    END as positive_reply_rate,
+    COALESCE(rs.bounces_count, 0) as bounces,
+    CASE 
+        WHEN (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0)) > 0 
+        THEN ROUND((COALESCE(rs.bounces_count, 0)::numeric / 
+                   (COALESCE(es.bison_sends, 0) + COALESCE(es.instantly_sends, 0))::numeric) * 100, 2)
+        ELSE 0::numeric 
+    END as bounce_rate,
+    COALESCE(ls.unique_leads_count, 0) as unique_leads
+FROM "Clients" c
+LEFT JOIN email_stats es ON es.client_id = c.id
+LEFT JOIN reply_stats rs ON rs.client_id = c.id
+LEFT JOIN lead_stats ls ON ls.client_id = c.id;
+
+-- Unique index to enable CONCURRENT refreshes
+CREATE UNIQUE INDEX IF NOT EXISTS idx_client_statistics_mv_client_id ON client_statistics_mv (client_id);
+
+
+
+

@@ -7,14 +7,21 @@ export async function GET(request: NextRequest) {
 		const startDate = searchParams.get('startDate') || undefined;
 		const endDate = searchParams.get('endDate') || undefined;
 		const platform = searchParams.get('platform');
+		const clientId = searchParams.get('clientId');
 
-		// Build args only for provided values to let SQL defaults kick in
+		// Build args for the filtered send volume trends function
 		const args: Record<string, any> = {};
-		if (startDate) args.start_date = startDate;
-		if (endDate) args.end_date = endDate;
+		if (startDate) args.start_date = new Date(startDate);
+		if (endDate) args.end_date = new Date(endDate);
 		if (platform && platform !== 'all') args.platform_filter = platform;
+		if (clientId && clientId !== 'all')
+			args.client_id_filter = parseInt(clientId);
 
-		const { data, error } = await supabase.rpc('get_send_volume_trends', args);
+		// Use the new filtered send volume trends function from materialized views
+		const { data, error } = await supabase.rpc(
+			'get_send_volume_trend_filtered',
+			args
+		);
 
 		if (error) {
 			console.error('Error fetching send volume trends:', error);

@@ -1,21 +1,32 @@
+import { format } from 'date-fns';
 import type { DateRange, DateRangePreset } from './types';
 
-export const getPresetLabels = (preset: DateRangePreset): string => {
+export const getPresetLabels = (
+	preset: DateRangePreset,
+	range?: DateRange
+): string => {
 	switch (preset) {
 		case '30d':
-			return 'Last 30 days';
+			return 'Last 30 Days';
 		case 'mtd':
-			return 'Month to date';
+			return 'This Month';
 		case 'ytd':
-			return 'Year to date';
+			return 'This Year';
 		case '1y':
-			return 'Last 12 months';
+			return 'Last 12 Months';
 		case '3y':
-			return 'Last 3 years';
+			return 'Last 3 Years';
 		case '5y':
-			return 'Last 5 years';
+			return 'Last 5 Years';
 		case 'custom':
-			return 'Custom';
+			return range
+				? `${format(range.startDate as Date, 'MMM d, yyyy')} to ${format(
+						range.endDate as Date,
+						'MMM d, yyyy'
+				  )}`
+				: 'Custom Range';
+		default:
+			return 'Select Range';
 	}
 };
 

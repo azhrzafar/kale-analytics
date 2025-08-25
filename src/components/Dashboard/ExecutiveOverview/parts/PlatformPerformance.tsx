@@ -38,19 +38,41 @@ export default function PlatformPerformance({
 		);
 	}
 
+	// Handle empty data
+	if (!data || data.length === 0) {
+		return (
+			<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 p-6">
+				<h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+					Platform Performance Comparison
+				</h3>
+				<div className="flex items-center justify-center h-48 text-gray-500">
+					<div className="text-center">
+						<div className="text-base font-semibold mb-2 text-gray-800">
+							No Data to Display Yet
+						</div>
+						<div className="text-sm text-gray-500">
+							Once your platforms start sending activity, performance insights
+							will appear here.
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 p-6">
 			<h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
 				Platform Performance Comparison
 			</h3>
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				{data.map((platform) => (
+				{data?.map((platform) => (
 					<div
 						key={platform.platform}
 						className="border border-primary-200 rounded-sm p-4"
 					>
 						<div className="flex items-center justify-between mb-3">
-							<h4 className="text-lg font-semibold text-gray-900">
+							<h4 className="text-lg font-semibold text-gray-900 capitalize">
 								{platform.platform}
 							</h4>
 							<span className="text-sm text-gray-500">
@@ -99,7 +121,6 @@ export default function PlatformPerformance({
 					</div>
 				))}
 
-				{/* Platform Distribution */}
 				{!!data.length && (
 					<PlatformDistribution platformData={data} loading={loading} />
 				)}

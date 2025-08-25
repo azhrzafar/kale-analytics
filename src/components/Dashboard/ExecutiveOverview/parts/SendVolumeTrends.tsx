@@ -12,6 +12,9 @@ import {
 	Legend,
 	Filler,
 } from 'chart.js';
+import { getPresetLabels } from '@/lib/utils';
+import { DateRangePreset } from '@/lib/types';
+import { useDateFilter } from '@/lib/appContext';
 
 ChartJS.register(
 	CategoryScale,
@@ -32,6 +35,9 @@ export default function SendVolumeTrends({
 	data,
 	loading,
 }: SendVolumeTrendsProps) {
+	const {
+		dateFilter: { preset, range },
+	} = useDateFilter();
 	const [trendData, setTrendData] = useState<any[]>([]);
 	const [selectedMetrics, setSelectedMetrics] = useState([
 		'replies',
@@ -176,7 +182,9 @@ export default function SendVolumeTrends({
 				<h3 className="text-lg font-semibold text-gray-900">
 					Send Volume Trends
 				</h3>
-				<div className="text-sm text-gray-500">Last 30 days</div>
+				<div className="text-sm text-gray-500">
+					{getPresetLabels(preset, range)}
+				</div>
 			</div>
 
 			<div className="min-h-96 h-auto">
