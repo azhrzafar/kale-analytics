@@ -7,7 +7,6 @@ import {
 	ExclamationTriangleIcon,
 	CalendarIcon,
 	UsersIcon,
-	ChatBubbleLeftRightIcon,
 	DocumentTextIcon,
 	ClockIcon,
 	ChartBarIcon,
@@ -23,6 +22,7 @@ import {
 } from '@heroicons/react/24/solid';
 import { formatNumber } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { Modal } from '@/components/Common/Modal';
 
 interface ClientDetailProps {
 	clientId: string;
@@ -47,6 +47,8 @@ interface KPIMetric {
 	format: 'percentage' | 'number';
 	icon: string;
 	color: string;
+	// optional small helper text under the value
+	subValue?: string;
 }
 
 interface CampaignData {
@@ -106,6 +108,8 @@ interface ClientDetailResponse {
 	dailyTrends: any[];
 	platformBreakdown: PlatformBreakdown;
 	activity: ActivityData;
+	// capacity is optional in API; keep it loose to avoid tight coupling
+	capacity?: any;
 }
 
 export default function ClientDetail({ clientId }: ClientDetailProps) {
@@ -114,6 +118,11 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 	);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [personalCap, setPersonalCap] = useState<number | ''>('');
+	const [workCap, setWorkCap] = useState<number | ''>('');
+	const [saving, setSaving] = useState(false);
+	const [saveMsg, setSaveMsg] = useState<string | null>(null);
+	const [isCapModalOpen, setIsCapModalOpen] = useState<boolean>(false);
 	const [selectedCampaign, setSelectedCampaign] = useState<CampaignData | null>(
 		null
 	);
@@ -156,6 +165,14 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 
 				// Only update state if component is still mounted
 				if (isMounted) {
+					// Coerce KPI values to safe numbers and keep optional subValue
+					if (Array.isArray(data.kpiData)) {
+						data.kpiData = data.kpiData.map((m: any) => ({
+							...m,
+							value: Number.isFinite(Number(m?.value)) ? Number(m.value) : 0,
+						}));
+					}
+
 					// Remove duplicate campaigns based on platform + campaign_id combination
 					if (data.campaigns && data.campaigns.length > 0) {
 						const uniqueCampaigns = data.campaigns.filter(
@@ -181,6 +198,15 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 					}
 
 					setClientData(data);
+
+					// Initialize capacity editor from API (manual-preferred values)
+					const cap = (data as any)?.capacity;
+					if (cap) {
+						setPersonalCap(
+							typeof cap.personalDaily === 'number' ? cap.personalDaily : ''
+						);
+						setWorkCap(typeof cap.workDaily === 'number' ? cap.workDaily : '');
+					}
 
 					// Set first campaign as selected by default
 					if (data.campaigns && data.campaigns.length > 0) {
@@ -220,12 +246,46 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 		return iconMap[iconName] || EnvelopeIcon;
 	};
 
+	const handleSaveCapacity = async () => {
+		try {
+			setSaving(true);
+			setSaveMsg(null);
+			const payload: any = {};
+			if (personalCap !== '')
+				payload.personal_sending_capacity_per_day = Number(personalCap);
+			if (workCap !== '')
+				payload.work_sending_capacity_per_day = Number(workCap);
+			const res = await fetch(`/api/clients/${clientId}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload),
+			});
+			if (!res.ok) {
+				const err = await res.json().catch(() => ({}));
+				throw new Error(err?.error || `Failed to save (status ${res.status})`);
+			}
+			setSaveMsg('Saved');
+			// Optionally refetch to refresh KPIs
+			const refreshed = await fetch(`/api/clients/${clientId}`);
+			if (refreshed.ok) {
+				const data = await refreshed.json();
+				setClientData(data);
+			}
+		} catch (e: any) {
+			setSaveMsg(e?.message || 'Failed to save');
+		} finally {
+			setSaving(false);
+			setTimeout(() => setSaveMsg(null), 2500);
+		}
+	};
+
 	const getIconBackground = (color: string) => {
 		const colorMap: { [key: string]: string } = {
 			primary: 'bg-primary-50',
 			success: 'bg-success-50',
 			secondary: 'bg-secondary-50',
 			warning: 'bg-warning-50',
+			danger: 'bg-danger-50',
 		};
 		return colorMap[color] || 'bg-neutral-100';
 	};
@@ -236,6 +296,7 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 			success: 'text-success-600',
 			secondary: 'text-secondary-600',
 			warning: 'text-warning-600',
+			danger: 'text-danger-600',
 		};
 		return colorMap[color] || 'text-neutral-600';
 	};
@@ -243,7 +304,7 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 	const formatValue = (metric: KPIMetric) => {
 		switch (metric.format) {
 			case 'percentage':
-				return `${metric.value.toFixed(1)}%`;
+				return `${metric.value.toFixed(2)}%`;
 			case 'number':
 				return formatNumber(metric.value);
 			default:
@@ -413,6 +474,9 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 								<p className="text-2xl font-bold text-gray-900">
 									{formatValue(metric)}
 								</p>
+								{metric.subValue && (
+									<p className="text-xs text-gray-500">{metric.subValue}</p>
+								)}
 							</div>
 
 							{/* Hover effect */}
@@ -421,6 +485,119 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 					);
 				})}
 			</div>
+
+			{/* Capacity Editor & Summary */}
+			<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 p-6">
+				<div className="flex items-center justify-between mb-4">
+					<h3 className="text-lg font-semibold text-gray-900 flex items-center">
+						<ChartBarIcon className="h-5 w-5 mr-2 text-primary-600" />
+						Capacity
+					</h3>
+					<button
+						onClick={() => setIsCapModalOpen(true)}
+						className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-sm border border-primary-200 text-primary-700 bg-primary-50 hover:bg-primary-100 transition-colors duration-200"
+					>
+						Edit Capacity
+					</button>
+				</div>
+
+				{/* Read-only summary from API if present */}
+				{(clientData as any)?.capacity && (
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+						<div className="border rounded-sm p-3 bg-white/60 text-center">
+							<div className="text-xs text-gray-500">Personal Daily</div>
+							<div className="text-xl font-semibold text-gray-900">
+								{formatNumber((clientData as any).capacity.personalDaily || 0)}
+							</div>
+						</div>
+						<div className="border rounded-sm p-3 bg-white/60 text-center">
+							<div className="text-xs text-gray-500">Work Daily</div>
+							<div className="text-xl font-semibold text-gray-900">
+								{formatNumber((clientData as any).capacity.workDaily || 0)}
+							</div>
+						</div>
+						<div className="border rounded-sm p-3 bg-white/60 text-center">
+							<div className="text-xs text-gray-500">Total Daily</div>
+							<div className="text-xl font-semibold text-gray-900">
+								{formatNumber((clientData as any).capacity.totalDaily || 0)}
+							</div>
+						</div>
+					</div>
+				)}
+			</div>
+
+			{/* Capacity Edit Modal */}
+			<Modal
+				isOpen={isCapModalOpen}
+				onClose={() => setIsCapModalOpen(false)}
+				title="Edit Capacity"
+				size="lg"
+			>
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label
+							className="block text-xs text-gray-600 mb-1"
+							htmlFor="personal-capacity"
+						>
+							Personal daily capacity (Instantly)
+						</label>
+						<input
+							id="personal-capacity"
+							type="number"
+							min={0}
+							className="w-full border border-primary-200 rounded-sm px-3 py-2 text-sm bg-white/70 focus:outline-none focus:ring-2 focus:ring-primary-200"
+							value={personalCap}
+							onChange={(e) =>
+								setPersonalCap(
+									e.target.value === '' ? '' : Number(e.target.value)
+								)
+							}
+							placeholder="e.g., 150"
+						/>
+					</div>
+					<div>
+						<label
+							className="block text-xs text-gray-600 mb-1"
+							htmlFor="work-capacity"
+						>
+							Work daily capacity (Bison)
+						</label>
+						<input
+							id="work-capacity"
+							type="number"
+							min={0}
+							className="w-full border border-primary-200 rounded-sm px-3 py-2 text-sm bg-white/70 focus:outline-none focus:ring-2 focus:ring-primary-200"
+							value={workCap}
+							onChange={(e) =>
+								setWorkCap(e.target.value === '' ? '' : Number(e.target.value))
+							}
+							placeholder="e.g., 150"
+						/>
+					</div>
+				</div>
+				<div className="flex items-center justify-end gap-3 mt-4">
+					<button
+						onClick={() => setIsCapModalOpen(false)}
+						className="px-3 py-1.5 text-sm rounded-sm border bg-white text-gray-700 hover:bg-gray-50"
+					>
+						Cancel
+					</button>
+					<button
+						onClick={async () => {
+							await handleSaveCapacity();
+							setIsCapModalOpen(false);
+						}}
+						disabled={saving}
+						className={`px-4 py-1.5 text-sm rounded-sm border text-white ${
+							saving
+								? 'bg-gray-300 cursor-not-allowed'
+								: 'bg-primary-600 hover:bg-primary-700 border-primary-700'
+						}`}
+					>
+						{saving ? 'Saving...' : 'Save'}
+					</button>
+				</div>
+			</Modal>
 
 			{/* Platform Performance Summary */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -445,14 +622,14 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 						<div className="flex justify-between items-center">
 							<span className="text-sm text-gray-500">Avg Sends/Day:</span>
 							<span className="text-sm font-medium text-gray-900">
-								{activity.avgDailySends?.toFixed(1) || 0}
+								{activity.avgDailySends?.toFixed(2) || 0}
 							</span>
 						</div>
 						<div className="flex justify-between items-center">
 							<span className="text-sm text-gray-500">Avg Replies/Day:</span>
 							<span className="text-sm font-medium text-gray-900">
 								{activity.avgRepliesPerDay
-									? activity.avgRepliesPerDay.toFixed(1)
+									? activity.avgRepliesPerDay.toFixed(2)
 									: 'N/A'}
 							</span>
 						</div>
@@ -525,32 +702,39 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 									</div>
 									<div className="grid grid-cols-4 gap-2 text-sm">
 										<div>
-											<span className="text-gray-500">Replies:</span>
+											<span className="text-gray-500">Max capacity:</span>
 											<div className="font-medium">
-												{formatNumber(data.replies)}
+												{formatNumber(clientData.capacity.expected[platform])}
 											</div>
 										</div>
 
 										<div>
-											<span className="text-gray-500">Reply Rate:</span>
-											<div className="font-medium">
+											<span className="text-gray-500">Utilization:</span>
+											<div className="font-medium text-success-600">
 												{data.sends > 0
-													? ((data.replies / data.sends) * 100).toFixed(1)
+													? (
+															(data.sends /
+																clientData.capacity.expected[platform]) *
+															100
+													  ).toFixed(2)
 													: 0}
 												%
 											</div>
 										</div>
 										<div>
-											<span className="text-gray-500">Positive Replies:</span>
-											<div className="font-medium text-success-600">
-												{formatNumber(data.positive)}
+											<span className="text-gray-500">Reply Rate:</span>
+											<div className="font-medium">
+												{data.sends > 0
+													? ((data.replies / data.sends) * 100).toFixed(2)
+													: 0}
+												%
 											</div>
 										</div>
 										<div>
 											<span className="text-gray-500">Positive Rate:</span>
 											<div className="font-medium">
-												{data.sends > 0
-													? ((data.positive / data.replies) * 100).toFixed(1)
+												{data.positive > 0
+													? ((data.positive / data.replies) * 100).toFixed(2)
 													: 0}
 												%
 											</div>
@@ -685,17 +869,17 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm text-gray-900">
-												{campaign.reply_rate.toFixed(1)}%
+												{campaign.reply_rate.toFixed(2)}%
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm text-gray-900">
-												{campaign.positive_rate.toFixed(1)}%
+												{campaign.positive_rate.toFixed(2)}%
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm text-gray-900">
-												{campaign.bounce_rate.toFixed(1)}%
+												{campaign.bounce_rate.toFixed(2)}%
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
