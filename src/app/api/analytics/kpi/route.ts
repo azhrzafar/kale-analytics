@@ -4,24 +4,32 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
-		const startDate = searchParams.get('startDate');
-		const endDate = searchParams.get('endDate');
-		const clientId = searchParams.get('clientId');
-		const platform = searchParams.get('platform');
+		const startDateRaw = searchParams.get('startDate') || null;
+		const endDateRaw = searchParams.get('endDate') || null;
 
-		// Build args for the filtered KPI function
-		const args: Record<string, any> = {};
-		if (startDate) args.start_date = new Date(startDate);
-		if (endDate) args.end_date = new Date(endDate);
-		if (platform && platform !== 'all') args.platform_filter = platform;
-		if (clientId && clientId !== 'all')
-			args.client_id_filter = parseInt(clientId);
+		// Convert to ISO (YYYY-MM-DD)
+		const startDate = startDateRaw
+			? new Date(startDateRaw).toISOString().split('T')[0]
+			: undefined;
+		const endDate = endDateRaw
+			? new Date(endDateRaw).toISOString().split('T')[0]
+			: undefined;
 
-		// Use the new filtered KPI function from materialized views
-		const { data: kpiData, error } = await supabase.rpc(
-			'get_kpi_overview_filtered',
-			args
-		);
+		const platform =
+			searchParams.get('platform') === 'all'
+				? null
+				: searchParams.get('platform');
+		const clientId =
+			searchParams.get('clientId') === 'all'
+				? null
+				: searchParams.get('clientId');
+
+		const { data, error } = await supabase.rpc('get_kpi_totals', {
+			_client_id: clientId ?? null,
+			_platform: platform ?? null,
+			_start_date: startDate ?? null,
+			_end_date: endDate ?? null,
+		});
 
 		if (error) {
 			console.error('Error fetching KPI data:', error);
@@ -31,18 +39,7 @@ export async function GET(request: NextRequest) {
 			);
 		}
 
-		// The function returns a single row with all KPI metrics
-		const kpi = kpiData?.[0] || {
-			total_emails_sent: 0,
-			total_replies: 0,
-			reply_rate: 0,
-			total_bounce: 0,
-			bounce_rate: 0,
-			positive_replies: 0,
-			positive_replies_rate: 0,
-			unique_leads_connected: 0,
-			send_positive_ratio: '0:0',
-		};
+		const kpi = data[0];
 
 		return NextResponse.json({
 			success: true,

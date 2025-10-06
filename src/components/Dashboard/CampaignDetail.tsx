@@ -210,8 +210,8 @@ export default function CampaignDetail({ campaignId }: CampaignDetailProps) {
 									</p>
 									<p className="text-2xl font-semibold text-gray-900">
 										{kpi.format === 'percentage'
-											? `${kpi.value.toFixed(1)}%`
-											: formatNumber(kpi.value)}
+											? `${(kpi.value ?? 0).toFixed(1)}%`
+											: formatNumber(kpi.value ?? 0)}
 									</p>
 								</div>
 							</div>

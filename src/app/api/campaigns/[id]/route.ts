@@ -18,9 +18,9 @@ export async function GET(
 
 		// Try lookup by campaign_id (external id)
 		let { data: byExternal, error: byExternalErr } = await supabase
-			.from('Campaigns')
+			.from('campaigns')
 			.select('*')
-			.eq('campaign_id', idParam)
+			.eq('id', idParam)
 			.limit(1);
 
 		let row = byExternal && byExternal.length > 0 ? byExternal[0] : null;
@@ -29,7 +29,7 @@ export async function GET(
 		if (!row && /^\d+$/.test(idParam)) {
 			const numericId = parseInt(idParam, 10);
 			const { data: byNumeric, error: byNumericErr } = await supabase
-				.from('Campaigns')
+				.from('campaigns')
 				.select('*')
 				.eq('id', numericId)
 				.limit(1);

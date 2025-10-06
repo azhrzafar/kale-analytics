@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createOptimizedSupabaseClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
 	try {
@@ -7,12 +7,13 @@ export async function GET(request: NextRequest) {
 
 		const { searchParams } = new URL(request.url);
 		const searchTerm = searchParams.get('search') || '';
-		const sortBy = searchParams.get('sortBy') || 'replyRate';
+		const sortBy = searchParams.get('sortBy') || 'emailsSent';
 		const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-		// Use the materialized-view backed RPC for client statistics
-		const { data: clientStats, error: statsError } =
-			await createOptimizedSupabaseClient().rpc('get_client_statistics_mat');
+		const { data: clientStats, error: statsError } = await supabase
+			.from('client_email_stats_mv')
+			.select('*')
+			.order('emails_sent', { ascending: false });
 
 		if (statsError) {
 			console.error('Error fetching client statistics:', {
@@ -24,50 +25,44 @@ export async function GET(request: NextRequest) {
 				{ status: 500 }
 			);
 		}
-
-		// Get additional client details
-		const { data: clients, error: clientsError } =
-			await createOptimizedSupabaseClient()
-				.from('Clients')
-				.select('*')
-				.order('id', { ascending: true });
-
-		if (clientsError) {
-			console.error('Error fetching clients:', clientsError);
-			return NextResponse.json(
-				{ error: 'Failed to fetch clients' },
-				{ status: 500 }
-			);
-		}
-
 		// Combine client stats with client details
-		const clientsWithStats = clientStats.map((stat: any) => {
-			const client = clients.find((c: any) => c.id === stat.client_id);
-
-			return {
-				id: stat.client_id.toString(),
-				name: stat.client_name || '',
-				onboardDate: stat.client_onboard_date || '',
-				services: stat.client_services ? stat.client_services.split(',') : [],
-				emailsSent: stat.emails_sent || 0,
-				replies: stat.replies || 0,
-				replyRate: stat.reply_rate || 0,
-				positiveReplies: stat.positive_replies || 0,
-				positiveReplyRate: stat.positive_reply_rate || 0,
-				bounces: stat.bounces || 0,
-				bounceRate: stat.bounce_rate || 0,
-				uniqueLeads: stat.unique_leads || 0,
-				// Additional client fields
-				domain: stat.client_domain || '',
-				primaryEmail: client?.['Primary Email'] || '',
-				primaryNumber: client?.['Primary Number'] || '',
-				contactTitle: client?.['Contact Title'] || '',
-				industry: client?.Industry || '',
-				instantlyApi: client?.instantly_api || '',
-				bisonApi: client?.bison_api || '',
-				instantlyApiV2: client?.instantly_api_v2 || '',
-			};
-		});
+		const clientsWithStats =
+			clientStats?.map((stat: any) => {
+				return {
+					id: stat.client_id.toString(),
+					name: stat.company_name || '',
+					onboardDate: stat.onboarding_date || '',
+					services: stat.services ? stat.services.split(',') : [],
+					emailsSent: stat.emails_sent || 0,
+					replies: stat.replies_received || 0,
+					replyRate: stat.reply_rate || 0,
+					positiveReplies: stat.positive_replies || 0,
+					positiveReplyRate: stat.positive_reply_rate || 0,
+					bounces: stat.bounces || 0,
+					bounceRate: stat.bounce_rate || 0,
+					uniqueLeads: stat.leads_generated || 0,
+					// Additional client fields
+					domain: stat.domain || '',
+					primaryEmail: stat.primary_email || '',
+					industry: stat.industry || '',
+					personal_sending_capacity_per_day:
+						stat.personal_sending_capacity_per_day || 0,
+					work_sending_capacity_per_day:
+						stat.work_sending_capacity_per_day || 0,
+					// Additional stats
+					platforms_used: stat.platforms_used || 0,
+					first_send_date: stat.first_send_date || '',
+					last_send_date: stat.last_send_date || '',
+					avg_daily_sends: stat.avg_daily_sends || 0,
+					bison_sends: stat.bison_sends || 0,
+					instantly_sends: stat.instantly_sends || 0,
+					bison_replies: stat.bison_replies || 0,
+					instantly_replies: stat.instantly_replies || 0,
+					bison_positive: stat.bison_positive || 0,
+					instantly_positive: stat.instantly_positive || 0,
+					total_campaigns: stat.total_campaigns || 0,
+				};
+			}) || [];
 
 		// Filter by search term
 		let filteredClients = clientsWithStats;
@@ -103,7 +98,7 @@ export async function GET(request: NextRequest) {
 					comparison = a.uniqueLeads - b.uniqueLeads;
 					break;
 				default:
-					comparison = a.replyRate - b.replyRate;
+					comparison = b.emailsSent - a.emailsSent;
 			}
 			return sortOrder === 'asc' ? comparison : -comparison;
 		});

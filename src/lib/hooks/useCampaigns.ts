@@ -132,7 +132,8 @@ interface CampaignDetailResponse {
 }
 
 const transformPlatform = (platform: string) => {
-	if (platform === 'Email Bison') return 'Bison';
+	if (platform === 'bison') return 'Bison';
+	if (platform === 'instantly') return 'Instantly';
 	return platform;
 };
 
@@ -147,7 +148,7 @@ export function useCampaigns() {
 	const [detailError, setDetailError] = useState<string | null>(null);
 	const [pagination, setPagination] = useState({
 		page: 1,
-		limit: 50,
+		limit: 10,
 		total: 0,
 		totalPages: 0,
 	});
@@ -156,16 +157,19 @@ export function useCampaigns() {
 		status: 'all',
 		platform: 'all',
 		clientId: 'all',
-		sortBy: 'replyRate' as
-			| 'name'
-			| 'replyRate'
-			| 'positiveRate'
-			| 'bounceRate'
+		sortBy: 'created_at' as
+			| 'campaign_name'
+			| 'created_at'
+			| 'updated_at'
 			| 'sent'
-			| 'createdDate',
+			| 'contacted'
+			| 'replies'
+			| 'opens'
+			| 'bounced'
+			| 'interested',
 		sortOrder: 'desc' as 'asc' | 'desc',
 		page: 1,
-		limit: 50,
+		limit: 10,
 	});
 
 	const fetchCampaigns = useCallback(
@@ -200,7 +204,7 @@ export function useCampaigns() {
 				const response = await fetch(
 					`/api/campaigns?${searchParams.toString()}`
 				);
-
+				console.log({ response });
 				if (!response.ok) {
 					throw new Error(`HTTP error! status: ${response.status}`);
 				}

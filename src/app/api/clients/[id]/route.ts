@@ -12,11 +12,11 @@ export async function GET(
 			return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
 		}
 
-		// Fetch client detail analytics from materialized view
-		const { data, error } = await supabase.rpc('get_client_detail_analytics', {
-			client_id_filter: clientId,
-		});
-
+		const { data: clientData, error } = await supabase
+			.from('client_email_stats_mv')
+			.select('*')
+			.eq('client_id', clientId)
+			.single();
 		if (error) {
 			console.error('Database error:', error);
 			return NextResponse.json(
@@ -25,39 +25,12 @@ export async function GET(
 			);
 		}
 
-		if (!data || data.length === 0) {
-			return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-		}
-
-		const clientData = data[0];
-
-		// Fetch manual capacity fields from Clients table
-		let personalManualCap = 0;
-		let workManualCap = 0;
-		try {
-			const { data: clientRow, error: clientErr } = await supabase
-				.from('Clients')
-				.select(
-					[
-						'personal_sending_capacity_per_day',
-						'work_sending_capacity_per_day',
-					].join(', ')
-				)
-				.eq('id', clientId)
-				.single();
-			if (!clientErr && clientRow) {
-				const rowAny = clientRow as any;
-				personalManualCap = Number(
-					rowAny?.personal_sending_capacity_per_day ?? 0
-				);
-				workManualCap = Number(rowAny?.work_sending_capacity_per_day ?? 0);
-			}
-		} catch (e) {
-			console.warn('Failed to fetch manual capacities from Clients table', e);
-		}
-
-		const personalDailyCapacity = personalManualCap;
-		const workDailyCapacity = workManualCap;
+		const personalDailyCapacity = Number(
+			clientData.personal_sending_capacity_per_day ?? 0
+		);
+		const workDailyCapacity = Number(
+			clientData.work_sending_capacity_per_day ?? 0
+		);
 		const totalDailyCapacity = personalDailyCapacity + workDailyCapacity;
 
 		// Date math (inclusive days)
@@ -81,19 +54,60 @@ export async function GET(
 		const expectedWorkSends = workDailyCapacity * numDays;
 		const expectedTotalSends = totalDailyCapacity * numDays;
 
+		// Execute query
+		const { data: campaigns, error: campaignsError } = await supabase
+			.from('campaigns')
+			.select('*', { count: 'exact' })
+			.eq('client_id', clientId);
+
+		if (campaignsError) {
+			console.error('Error fetching campaigns:', campaignsError);
+			return NextResponse.json(
+				{ success: false, error: 'Failed to fetch campaigns' },
+				{ status: 500 }
+			);
+		}
+
+		// Transform data for frontend (field names match your new schema)
+		const transformedCampaigns =
+			campaigns?.map((campaign: any) => ({
+				campaign_id: campaign.id,
+				campaign_name: campaign.campaign_name,
+				platform: campaign.platform,
+				status: campaign.status,
+				sends: campaign.sent,
+				leads: campaign.contacted, // Note: keeping 'connected' for frontend compatibility
+				replies: campaign.replies,
+				bounced: campaign.bounced,
+				positive: campaign.interested,
+				reply_rate:
+					campaign.sent > 0 ? (campaign.replies / campaign.sent) * 100 : 0,
+				positive_rate:
+					campaign.replies > 0
+						? (campaign.interested / campaign.replies) * 100
+						: 0,
+				bounce_rate:
+					campaign.sent > 0 ? (campaign.bounced / campaign.sent) * 100 : 0,
+				send_to_positive_ratio:
+					campaign.interested > 0 ? campaign.sent / campaign.interested : 0,
+			})) || [];
+		console.log({ clientData });
 		// Transform the data for frontend consumption
 		const transformedData = {
 			// Basic client info
 			client: {
 				id: clientData.client_id,
-				name: clientData.client_name,
-				domain: clientData.client_domain,
-				email: clientData.client_email,
+				name: clientData.company_name,
+				domain: clientData.domain,
+				email: clientData.primary_email,
 				phone: clientData.client_phone,
 				contactTitle: clientData.contact_title,
 				industry: clientData.industry,
 				services: clientData.services,
 				onboardingDate: clientData.onboarding_date,
+				personal_sending_capacity_per_day:
+					clientData.personal_sending_capacity_per_day,
+				work_sending_capacity_per_day: clientData.work_sending_capacity_per_day,
 			},
 
 			// KPI Metrics
@@ -101,7 +115,7 @@ export async function GET(
 				{
 					id: 'emails-sent',
 					label: 'Emails Sent',
-					value: clientData.total_emails_sent,
+					value: clientData.emails_sent,
 					format: 'number',
 					icon: 'EnvelopeSolidIcon',
 					color: 'primary',
@@ -150,7 +164,7 @@ export async function GET(
 			],
 
 			// Campaign data
-			campaigns: clientData.campaigns_data || [],
+			campaigns: transformedCampaigns || [],
 
 			// Recent replies
 			recentReplies: clientData.recent_replies || [],
@@ -191,7 +205,7 @@ export async function GET(
 			// Activity summary
 			activity: {
 				totalCampaigns: clientData.total_campaigns,
-				uniqueLeads: clientData.unique_leads_contacted,
+				uniqueLeads: clientData.leads_generated,
 				platformsUsed: clientData.platforms_used,
 				firstSendDate: clientData.first_send_date,
 				lastSendDate: clientData.last_send_date,
@@ -267,7 +281,7 @@ export async function PATCH(
 		}
 
 		const { error } = await supabase
-			.from('Clients')
+			.from('clients')
 			.update(updatePayload)
 			.eq('id', clientId);
 

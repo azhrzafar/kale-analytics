@@ -294,7 +294,7 @@ export default function ClientsList() {
 													{client.replies}
 												</span>
 												<span className={`text-xs text-gray-500`}>
-													{Math.abs(client.replyRate).toFixed(2)}%
+													{Math.abs(client.replyRate ?? 0).toFixed(2)}%
 												</span>
 											</div>
 										</td>
@@ -304,7 +304,7 @@ export default function ClientsList() {
 													{formatNumber(client.positiveReplies)}
 												</span>
 												<span className={`text-xs text-success-500`}>
-													{Math.abs(client.positiveReplyRate).toFixed(2)}%
+													{Math.abs(client.positiveReplyRate ?? 0).toFixed(2)}%
 												</span>
 											</div>
 										</td>
@@ -314,7 +314,7 @@ export default function ClientsList() {
 													{client.bounces}
 												</span>
 												<span className={`text-xs text-danger-500`}>
-													{Math.abs(client.bounceRate).toFixed(1)}%
+													{Math.abs(client.bounceRate ?? 0).toFixed(1)}%
 												</span>
 											</div>
 										</td>

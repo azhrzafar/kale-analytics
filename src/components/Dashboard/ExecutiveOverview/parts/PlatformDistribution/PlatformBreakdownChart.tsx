@@ -102,7 +102,7 @@ const PlatformBreakdownChart = ({
 								{item.platform}
 							</span>
 							<span className="text-xs text-gray-500">
-								{item.percentage.toFixed(1)}%
+								{(item.percentage ?? 0).toFixed(1)}%
 							</span>
 						</div>
 					</div>

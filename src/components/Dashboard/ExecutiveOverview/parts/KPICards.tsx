@@ -131,17 +131,17 @@ export default function KPICards({ kpiData, loading }: KPICardsProps) {
 							>
 								{metric.changeType && <ChangeIcon className="h-3 w-3" />}
 								<span className="text-xs font-medium">
-									{metric.change && `${metric.change.toFixed(1)}%`}
+									{metric.change && `${(metric.change ?? 0).toFixed(1)}%`}
 								</span>
 							</div>
 						</div>
 						<div className="mt-4">
 							<div className="text-2xl font-bold text-gray-900">
 								{metric.format === 'percentage'
-									? `${metric.value.toFixed(1)}%`
+									? `${(metric.value ?? 0).toFixed(1)}%`
 									: metric.format === 'ratio'
 									? metric.value
-									: formatNumber(metric.value)}
+									: formatNumber(metric.value ?? 0)}
 							</div>
 							<div className="text-sm font-medium text-gray-900">
 								{metric.label}

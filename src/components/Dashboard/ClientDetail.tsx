@@ -869,22 +869,22 @@ export default function ClientDetail({ clientId }: ClientDetailProps) {
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm text-gray-900">
-												{campaign.reply_rate.toFixed(2)}%
+												{(campaign.reply_rate ?? 0).toFixed(2)}%
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm text-gray-900">
-												{campaign.positive_rate.toFixed(2)}%
+												{(campaign.positive_rate ?? 0).toFixed(2)}%
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm text-gray-900">
-												{campaign.bounce_rate.toFixed(2)}%
+												{(campaign.bounce_rate ?? 0).toFixed(2)}%
 											</div>
 										</td>
 										<td className="px-6 py-4 whitespace-nowrap">
 											<div className="text-sm font-medium text-gray-900">
-												{campaign.send_to_positive_ratio.toFixed(0)} : 1
+												{(campaign.send_to_positive_ratio ?? 0).toFixed(0)} : 1
 											</div>
 										</td>
 									</tr>

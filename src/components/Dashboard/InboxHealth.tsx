@@ -670,7 +670,7 @@ export default function InboxHealth({ onInboxSelect }: InboxHealthProps) {
 									<td className="px-6 py-4 whitespace-nowrap">
 										<div className="text-sm text-gray-900">
 											{formatNumber(inbox.sendingErrors)} (
-											{inbox.errorRate.toFixed(1)}%)
+											{(inbox.errorRate ?? 0).toFixed(1)}%)
 										</div>
 									</td>
 									<td className="px-6 py-4 whitespace-nowrap">

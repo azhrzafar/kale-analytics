@@ -39,6 +39,7 @@ export default function SendVolumeTrends({
 		dateFilter: { preset, range },
 	} = useDateFilter();
 	const [trendData, setTrendData] = useState<any[]>([]);
+
 	const [selectedMetrics, setSelectedMetrics] = useState([
 		'replies',
 		'positive',
@@ -67,8 +68,8 @@ export default function SendVolumeTrends({
 
 	const metrics = [
 		{
-			key: 'emails',
-			label: 'Emails',
+			key: 'sends',
+			label: 'Sends',
 			color: 'bg-primary-500',
 			gradient: 'from-primary-500 to-primary-400',
 		},
@@ -95,7 +96,7 @@ export default function SendVolumeTrends({
 	// Build Chart.js datasets
 	interface TrendPoint {
 		date: string;
-		emails: number;
+		sends: number;
 		replies: number;
 		positive: number;
 		bounces: number;
@@ -109,20 +110,20 @@ export default function SendVolumeTrends({
 	);
 
 	const colorMap: Record<string, { border: string; bg: string }> = {
-		emails: { border: '#0ea5e9', bg: 'rgba(14,165,233,0.12)' }, // primary-500
+		sends: { border: '#0ea5e9', bg: 'rgba(14,165,233,0.12)' }, // primary-500
 		replies: { border: '#22c55e', bg: 'rgba(34,197,94,0.12)' }, // success-500
 		positive: { border: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' }, // purple-500
 		bounces: { border: '#f59e0b', bg: 'rgba(245,158,11,0.12)' }, // warning-500
 	};
 
 	const metricToKey: Record<string, keyof TrendPoint> = {
-		emails: 'emails',
+		sends: 'sends',
 		replies: 'replies',
 		positive: 'positive',
 		bounces: 'bounces',
 	};
 
-	const datasets = ['emails', 'replies', 'positive', 'bounces']
+	const datasets = ['sends', 'replies', 'positive', 'bounces']
 		.filter((m) => selectedMetrics.includes(m))
 		.map((m) => ({
 			label: m.charAt(0).toUpperCase() + m.slice(1),

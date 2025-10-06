@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
 	EnvelopeIcon,
 	MagnifyingGlassIcon,
@@ -12,6 +12,8 @@ import {
 	BuildingOfficeIcon,
 	ArrowPathIcon,
 	ExclamationCircleIcon,
+	ChevronLeftIcon,
+	ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { formatNumber } from '@/lib/utils';
@@ -26,113 +28,81 @@ export default function CampaignsList({
 	onCampaignSelect,
 }: CampaignsListProps) {
 	const router = useRouter();
-	const { campaigns, loading, error, refreshCampaigns, updateCampaignStatus } =
-		useCampaigns();
+	const {
+		campaigns,
+		loading,
+		error,
+		refreshCampaigns,
+		updateCampaignStatus,
+		pagination,
+		updateFilters,
+	} = useCampaigns();
 	const { clients, loading: clientsLoading } = useClients();
-
-	// Local state for frontend filtering
+	console.log({ clients });
+	// Local state for UI controls only
 	const [searchTerm, setSearchTerm] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [platformFilter, setPlatformFilter] = useState('all');
 	const [selectedClient, setSelectedClient] = useState('all');
-	const [sortBy, setSortBy] = useState('replyRate');
+	const [sortBy, setSortBy] = useState('created_at');
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+	const [itemsPerPage, setItemsPerPage] = useState(pagination.limit);
 
-	// Filter and sort campaigns on frontend
-	const filteredAndSortedCampaigns = useMemo(() => {
-		let filtered = campaigns;
+	useEffect(() => {
+		setItemsPerPage(pagination.limit);
+	}, [pagination.limit]);
 
-		// Apply search filter
-		if (searchTerm) {
-			filtered = filtered.filter(
-				(campaign) =>
-					campaign.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					campaign.campaignId
-						.toLowerCase()
-						.includes(searchTerm.toLowerCase()) ||
-					campaign.workspace.toLowerCase().includes(searchTerm.toLowerCase())
-			);
-		}
-
-		// Apply status filter
-		if (statusFilter !== 'all') {
-			filtered = filtered.filter(
-				(campaign) => campaign.status === statusFilter
-			);
-		}
-
-		// Apply platform filter
-		if (platformFilter !== 'all') {
-			filtered = filtered.filter(
-				(campaign) => campaign.platform === platformFilter
-			);
-		}
-
-		// Apply client filter
-		if (selectedClient !== 'all') {
-			filtered = filtered.filter(
-				(campaign) => campaign.client_id === selectedClient
-			);
-		}
-
-		// Apply sorting
-		filtered.sort((a, b) => {
-			let aValue: any = a[sortBy as keyof typeof a];
-			let bValue: any = b[sortBy as keyof typeof b];
-
-			// Handle nested properties
-			if (sortBy === 'replyRate') {
-				aValue = a.replyRate;
-				bValue = b.replyRate;
-			} else if (sortBy === 'positiveRate') {
-				aValue = a.positiveRate;
-				bValue = b.positiveRate;
-			} else if (sortBy === 'bounceRate') {
-				aValue = a.bounceRate;
-				bValue = b.bounceRate;
-			}
-
-			if (typeof aValue === 'string') {
-				aValue = aValue.toLowerCase();
-				bValue = bValue.toLowerCase();
-			}
-
-			if (sortOrder === 'asc') {
-				return aValue > bValue ? 1 : -1;
-			} else {
-				return aValue < bValue ? 1 : -1;
-			}
-		});
-
-		return filtered;
-	}, [
-		campaigns,
-		searchTerm,
-		statusFilter,
-		platformFilter,
-		selectedClient,
-		sortBy,
-		sortOrder,
-	]);
+	// Use backend pagination data directly
+	const totalItems = pagination.total;
+	const totalPages = pagination.totalPages;
+	const currentPage = pagination.page;
 
 	// Handle search
 	const handleSearch = (value: string) => {
 		setSearchTerm(value);
+		updateFilters({
+			search: value || undefined,
+			status: statusFilter !== 'all' ? statusFilter : undefined,
+			platform: platformFilter !== 'all' ? platformFilter : undefined,
+			clientId: selectedClient !== 'all' ? selectedClient : undefined,
+			sortBy: sortBy as any,
+			sortOrder,
+			page: 1,
+			limit: itemsPerPage,
+		});
 	};
 
 	// Handle status filter
 	const handleStatusFilter = (value: string) => {
 		setStatusFilter(value);
+		updateFilters({
+			search: searchTerm || undefined,
+			status: value !== 'all' ? value : undefined,
+			platform: platformFilter !== 'all' ? platformFilter : undefined,
+			clientId: selectedClient !== 'all' ? selectedClient : undefined,
+			sortBy: sortBy as any,
+			sortOrder,
+			page: 1,
+			limit: itemsPerPage,
+		});
 	};
 
 	// Handle sorting
 	const handleSort = (newSortBy: string) => {
-		if (sortBy === newSortBy) {
-			setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-		} else {
-			setSortBy(newSortBy);
-			setSortOrder('desc');
-		}
+		const newSortOrder =
+			sortBy === newSortBy && sortOrder === 'desc' ? 'asc' : 'desc';
+		setSortBy(newSortBy);
+		setSortOrder(newSortOrder);
+		updateFilters({
+			search: searchTerm || undefined,
+			status: statusFilter !== 'all' ? statusFilter : undefined,
+			platform: platformFilter !== 'all' ? platformFilter : undefined,
+			clientId: selectedClient !== 'all' ? selectedClient : undefined,
+			sortBy: newSortBy as any,
+			sortOrder: newSortOrder,
+			page: 1,
+			limit: itemsPerPage,
+		});
 	};
 
 	// Handle campaign click
@@ -144,24 +114,53 @@ export default function CampaignsList({
 		}
 	};
 
-	// Handle status toggle
-	const handleStatusToggle = async (
-		campaignId: string,
-		currentStatus: string,
-		e: React.MouseEvent
-	) => {
-		e.stopPropagation();
+	// Pagination handlers
+	const handlePageChange = (page: number) => {
+		updateFilters({
+			search: searchTerm || undefined,
+			status: statusFilter !== 'all' ? statusFilter : undefined,
+			platform: platformFilter !== 'all' ? platformFilter : undefined,
+			clientId: selectedClient !== 'all' ? selectedClient : undefined,
+			sortBy: sortBy as any,
+			sortOrder,
+			page,
+			limit: itemsPerPage,
+		});
+	};
 
-		let newStatus: 'active' | 'paused' | 'completed';
-		if (currentStatus === 'active') {
-			newStatus = 'paused';
-		} else if (currentStatus === 'paused') {
-			newStatus = 'active';
+	const handleItemsPerPageChange = (newItemsPerPage: number) => {
+		setItemsPerPage(newItemsPerPage);
+		updateFilters({
+			search: searchTerm || undefined,
+			status: statusFilter !== 'all' ? statusFilter : undefined,
+			platform: platformFilter !== 'all' ? platformFilter : undefined,
+			clientId: selectedClient !== 'all' ? selectedClient : undefined,
+			sortBy: sortBy as any,
+			sortOrder,
+			page: currentPage, // Keep current page instead of resetting to 1
+			limit: newItemsPerPage,
+		});
+	};
+
+	// Generate page numbers for pagination
+	const getPageNumbers = () => {
+		const pages = [];
+		const maxVisiblePages = 5;
+
+		if (totalPages <= maxVisiblePages) {
+			for (let i = 1; i <= totalPages; i++) {
+				pages.push(i);
+			}
 		} else {
-			return; // Don't allow status changes for completed campaigns
+			const startPage = Math.max(1, currentPage - 2);
+			const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+			for (let i = startPage; i <= endPage; i++) {
+				pages.push(i);
+			}
 		}
 
-		await updateCampaignStatus(campaignId, newStatus);
+		return pages;
 	};
 
 	const getStatusColor = (status: string) => {
@@ -217,41 +216,7 @@ export default function CampaignsList({
 		);
 	}
 
-	if (loading) {
-		return (
-			<div className="space-y-6 animate-pulse">
-				{/* Header Skeleton */}
-				<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 p-6">
-					<div className="h-8 bg-gray-200 rounded w-64 mb-4"></div>
-					<div className="h-4 bg-gray-200 rounded w-48"></div>
-				</div>
-
-				{/* Table Skeleton */}
-				<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 overflow-hidden">
-					<div className="px-6 py-4 border-b border-primary-100 bg-primary-50/80">
-						<div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
-						<div className="h-4 bg-gray-200 rounded w-48"></div>
-					</div>
-					<div className="p-6">
-						<div className="space-y-4">
-							{[...Array(5)].map((_, index) => (
-								<div key={index} className="flex items-center space-x-4">
-									<div className="h-10 w-10 bg-gray-200 rounded-full"></div>
-									<div className="flex-1 space-y-2">
-										<div className="h-4 bg-gray-200 rounded w-48"></div>
-										<div className="h-3 bg-gray-200 rounded w-32"></div>
-									</div>
-									<div className="h-6 bg-gray-200 rounded w-16"></div>
-									<div className="h-4 bg-gray-200 rounded w-24"></div>
-									<div className="h-4 bg-gray-200 rounded w-20"></div>
-								</div>
-							))}
-						</div>
-					</div>
-				</div>
-			</div>
-		);
-	}
+	// Don't show full skeleton, show table with loading rows instead
 
 	const truncateText = (str: string, length = 20) => {
 		return str.length > length ? str.slice(0, length) + '...' : str;
@@ -269,7 +234,12 @@ export default function CampaignsList({
 								Campaigns
 							</h2>
 							<p className="text-sm text-gray-600 mt-1">
-								{filteredAndSortedCampaigns.length} campaigns
+								{totalItems > 0
+									? `Showing ${(currentPage - 1) * itemsPerPage + 1}-${Math.min(
+											currentPage * itemsPerPage,
+											totalItems
+									  )} of ${totalItems} campaigns`
+									: `${totalItems} campaigns`}
 							</p>
 						</div>
 
@@ -292,13 +262,27 @@ export default function CampaignsList({
 
 							<select
 								value={selectedClient}
-								onChange={(e) => setSelectedClient(e.target.value)}
+								onChange={(e) => {
+									setSelectedClient(e.target.value);
+									updateFilters({
+										search: searchTerm || undefined,
+										status: statusFilter !== 'all' ? statusFilter : undefined,
+										platform:
+											platformFilter !== 'all' ? platformFilter : undefined,
+										clientId:
+											e.target.value !== 'all' ? e.target.value : undefined,
+										sortBy: sortBy as any,
+										sortOrder,
+										page: 1,
+										limit: itemsPerPage,
+									});
+								}}
 								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 focus:outline-none transition-all duration-200"
 							>
 								<option value="all">All Clients</option>
 								{clients.map((client) => (
 									<option key={client.id} value={client.id}>
-										{client['Company Name']}
+										{client.company_name}
 									</option>
 								))}
 								{clientsLoading && <div>Loading...</div>}
@@ -322,7 +306,26 @@ export default function CampaignsList({
 								{['all', 'Instantly', 'Bison'].map((platform) => (
 									<button
 										key={platform}
-										onClick={() => setPlatformFilter(platform)}
+										onClick={() => {
+											setPlatformFilter(platform);
+											updateFilters({
+												search: searchTerm || undefined,
+												status:
+													statusFilter !== 'all' ? statusFilter : undefined,
+												platform:
+													platform !== 'all'
+														? platform === 'Instantly'
+															? 'instantly'
+															: 'bison'
+														: undefined,
+												clientId:
+													selectedClient !== 'all' ? selectedClient : undefined,
+												sortBy: sortBy as any,
+												sortOrder,
+												page: 1,
+												limit: itemsPerPage,
+											});
+										}}
 										className={`px-3 py-1 text-xs font-medium rounded-sm transition-colors duration-200 ${
 											platformFilter === platform
 												? 'bg-primary-100 text-primary-700 shadow-sm'
@@ -378,12 +381,12 @@ export default function CampaignsList({
 									</div>
 								</th>
 								<th
-									onClick={() => handleSort('leads')}
+									onClick={() => handleSort('contacted')}
 									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
 								>
 									<div className="flex items-center">
 										Leads
-										{sortBy === 'leads' &&
+										{sortBy === 'contacted' &&
 											(sortOrder === 'asc' ? (
 												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
 											) : (
@@ -419,47 +422,14 @@ export default function CampaignsList({
 											))}
 									</div>
 								</th>
-								<th
-									onClick={() => handleSort('replyRate')}
-									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
-								>
-									<div className="flex items-center">
-										Reply Rate
-										{sortBy === 'replyRate' &&
-											(sortOrder === 'asc' ? (
-												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
-											) : (
-												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
-											))}
-									</div>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+									Reply Rate
 								</th>
-								<th
-									onClick={() => handleSort('positiveRate')}
-									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
-								>
-									<div className="flex items-center">
-										Positive
-										{sortBy === 'positiveRate' &&
-											(sortOrder === 'asc' ? (
-												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
-											) : (
-												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
-											))}
-									</div>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+									Positive
 								</th>
-								<th
-									onClick={() => handleSort('positiveRate')}
-									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
-								>
-									<div className="flex items-center">
-										Positive Rate
-										{sortBy === 'positiveRate' &&
-											(sortOrder === 'asc' ? (
-												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
-											) : (
-												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
-											))}
-									</div>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+									Positive Rate
 								</th>
 								<th
 									onClick={() => handleSort('bounced')}
@@ -476,19 +446,8 @@ export default function CampaignsList({
 									</div>
 								</th>
 
-								<th
-									onClick={() => handleSort('bounceRate')}
-									className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-primary-100 transition-colors duration-200"
-								>
-									<div className="flex items-center">
-										Bounce Rate
-										{sortBy === 'bounceRate' &&
-											(sortOrder === 'asc' ? (
-												<ArrowUpIcon className="h-4 w-4 ml-1 text-primary-500" />
-											) : (
-												<ArrowDownIcon className="h-4 w-4 ml-1 text-primary-500" />
-											))}
-									</div>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+									Bounce Rate
 								</th>
 
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
@@ -501,128 +460,188 @@ export default function CampaignsList({
 							</tr>
 						</thead>
 						<tbody className="bg-white/50 divide-y divide-primary-100">
-							{filteredAndSortedCampaigns.map((campaign, index) => (
-								<tr
-									key={campaign.id}
-									className="hover:bg-primary-50/50 transition-colors duration-200 cursor-pointer"
-									onClick={() => handleCampaignClick(campaign.campaignId)}
-									style={{ animationDelay: `${index * 50}ms` }}
-								>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="flex items-center">
-											<div className="flex-shrink-0 h-10 w-10">
-												<div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-													<EnvelopeIcon className="h-5 w-5 text-primary-600" />
+							{loading
+								? // Show skeleton rows when loading
+								  [...Array(itemsPerPage)].map((_, index) => (
+										<tr key={`skeleton-${index}`} className="animate-pulse">
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="flex items-center">
+													<div className="flex-shrink-0 h-10 w-10">
+														<div className="h-10 w-10 rounded-full bg-gray-200"></div>
+													</div>
+													<div className="ml-4">
+														<div className="h-4 bg-gray-200 rounded w-48 mb-2"></div>
+														<div className="h-3 bg-gray-200 rounded w-32"></div>
+													</div>
 												</div>
-											</div>
-
-											<div className="ml-4 relative group">
-												<div className="text-sm font-medium text-gray-900">
-													{truncateText(campaign.name)}
-												</div>
-												<div className="text-sm text-gray-500">
-													ID: {truncateText(campaign.campaignId, 10)}
-												</div>
-
-												<div className="absolute left-0 bottom-full mb-2 hidden w-max max-w-xs rounded-md bg-gray-800 px-2 py-1 text-xs text-white shadow-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-hover:block">
-													{campaign.name}
-												</div>
-											</div>
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="flex items-center text-sm text-gray-600">
-											<BuildingOfficeIcon className="h-4 w-4 mr-1" />
-											{campaign.workspace}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<span className="text-sm text-gray-600">
-											{campaign.platform}
-										</span>
-									</td>
-
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm text-gray-900">
-											{formatNumber(campaign.sent)}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{campaign.leads}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{formatNumber(campaign.opens)}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{formatNumber(campaign.replies)}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{campaign.replyRate.toFixed(1)}%
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{campaign.positiveReplies}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{campaign.positiveRate.toFixed(1)}%
-										</div>
-									</td>
-
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm font-medium text-gray-900">
-											{campaign.bounceRate.toFixed(1)}
-										</div>
-									</td>
-									<td className="px-6 py-4 whitespace-nowrap">
-										<div className="text-sm text-gray-900">
-											{campaign.bounceRate.toFixed(1)}%
-										</div>
-									</td>
-
-									<td className="px-6 py-4 whitespace-nowrap">
-										<span
-											className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-												campaign.status
-											)}`}
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-32"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-20"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-20"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-20"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-20"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-20"></div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="h-4 bg-gray-200 rounded w-16"></div>
+											</td>
+										</tr>
+								  ))
+								: // Show actual data when not loading
+								  campaigns.map((campaign, index) => (
+										<tr
+											key={campaign.id}
+											className="hover:bg-primary-50/50 transition-colors duration-200 cursor-pointer"
+											onClick={() => handleCampaignClick(campaign.id)}
+											style={{ animationDelay: `${index * 50}ms` }}
 										>
-											{getStatusIcon(campaign.status)}
-											{campaign.status.charAt(0).toUpperCase() +
-												campaign.status.slice(1)}
-										</span>
-									</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="flex items-center">
+													<div className="flex-shrink-0 h-10 w-10">
+														<div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+															<EnvelopeIcon className="h-5 w-5 text-primary-600" />
+														</div>
+													</div>
 
-									<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-										<div className="flex justify-end space-x-2">
-											<button
-												className="text-primary-600 hover:text-primary-900 transition-colors duration-200"
-												title="View details"
-												onClick={(e) => {
-													e.stopPropagation();
-													handleCampaignClick(campaign.id);
-												}}
-											>
-												<EyeIcon className="h-4 w-4" />
-											</button>
-										</div>
-									</td>
-								</tr>
-							))}
+													<div className="ml-4 relative group">
+														<div className="text-sm font-medium text-gray-900">
+															{truncateText(campaign.name)}
+														</div>
+														<div className="text-sm text-gray-500">
+															ID: {truncateText(campaign.id, 10)}
+														</div>
+
+														<div className="absolute left-0 bottom-full mb-2 hidden w-max max-w-xs rounded-md bg-gray-800 px-2 py-1 text-xs text-white shadow-md opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-hover:block">
+															{campaign.name}
+														</div>
+													</div>
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="flex items-center text-sm text-gray-600">
+													<BuildingOfficeIcon className="h-4 w-4 mr-1" />
+													{campaign.workspace}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<span className="text-sm text-gray-600">
+													{campaign.platform}
+												</span>
+											</td>
+
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm text-gray-900">
+													{formatNumber(campaign.sent)}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{campaign.leads}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{formatNumber(campaign.opens)}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{formatNumber(campaign.replies)}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{(campaign.replyRate ?? 0).toFixed(1)}%
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{campaign.positiveReplies}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{(campaign.positiveRate ?? 0).toFixed(1)}%
+												</div>
+											</td>
+
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm font-medium text-gray-900">
+													{(campaign.bounceRate ?? 0).toFixed(1)}
+												</div>
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="text-sm text-gray-900">
+													{(campaign.bounceRate ?? 0).toFixed(1)}%
+												</div>
+											</td>
+
+											<td className="px-6 py-4 whitespace-nowrap">
+												<span
+													className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+														campaign.status
+													)}`}
+												>
+													{getStatusIcon(campaign.status)}
+													{campaign.status.charAt(0).toUpperCase() +
+														campaign.status.slice(1)}
+												</span>
+											</td>
+
+											<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+												<div className="flex justify-end space-x-2">
+													<button
+														className="text-primary-600 hover:text-primary-900 transition-colors duration-200"
+														title="View details"
+														onClick={(e) => {
+															e.stopPropagation();
+															handleCampaignClick(campaign.id);
+														}}
+													>
+														<EyeIcon className="h-4 w-4" />
+													</button>
+												</div>
+											</td>
+										</tr>
+								  ))}
 						</tbody>
 					</table>
 				</div>
 
 				{/* Empty State */}
-				{filteredAndSortedCampaigns.length === 0 && (
+				{!loading && totalItems === 0 && (
 					<div className="text-center py-12 bg-primary-50/30">
 						<EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400" />
 						<h3 className="mt-2 text-sm font-medium text-gray-900">
@@ -639,6 +658,85 @@ export default function CampaignsList({
 					</div>
 				)}
 			</div>
+
+			{/* Pagination Controls */}
+			{totalPages > 1 && (
+				<div className="bg-white/80 backdrop-blur-sm shadow-primary rounded-md border border-primary-100 px-6 py-4">
+					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+						{/* Pagination Info */}
+						<div className="text-sm text-gray-600 mb-4 sm:mb-0">
+							Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
+							{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}{' '}
+							campaigns
+						</div>
+
+						{/* TODO: i want to add a dropdown to select the number of items per page */}
+						<div className="flex items-center space-x-2">
+							<select
+								value={itemsPerPage}
+								onChange={(e) =>
+									handleItemsPerPageChange(Number(e.target.value))
+								}
+								className="px-3 py-2 text-sm border rounded-sm focus:shadow-sm bg-white text-gray-900 focus:outline-none transition-all duration-200"
+							>
+								<option value={5}>5 per page</option>
+								<option value={10}>10 per page</option>
+								<option value={25}>25 per page</option>
+								<option value={50}>50 per page</option>
+								<option value={100}>100 per page</option>
+							</select>
+						</div>
+
+						{/* Pagination Navigation */}
+						<div className="flex items-center space-x-2">
+							{/* Previous Button */}
+							<button
+								onClick={() => handlePageChange(currentPage - 1)}
+								disabled={currentPage === 1}
+								className={`p-2 rounded-md border transition-colors duration-200 ${
+									currentPage === 1
+										? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+										: 'bg-white border-primary-200 text-primary-600 hover:bg-primary-50'
+								}`}
+								title="Previous page"
+							>
+								<ChevronLeftIcon className="h-4 w-4" />
+							</button>
+
+							{/* Page Numbers */}
+							<div className="flex items-center space-x-1">
+								{getPageNumbers().map((pageNumber: number) => (
+									<button
+										key={pageNumber}
+										onClick={() => handlePageChange(pageNumber)}
+										className={`px-3 py-2 text-sm rounded-md border transition-colors duration-200 ${
+											currentPage === pageNumber
+												? 'bg-primary-100 border-primary-200 text-primary-700 font-medium'
+												: 'bg-white border-primary-200 text-primary-600 hover:bg-primary-50'
+										}`}
+									>
+										{pageNumber}
+									</button>
+								))}
+							</div>
+
+							{/* Next Button */}
+							<button
+								onClick={() => handlePageChange(currentPage + 1)}
+								disabled={currentPage === totalPages}
+								className={`p-2 rounded-md border transition-colors duration-200 ${
+									currentPage === totalPages
+										? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+										: 'bg-white border-primary-200 text-primary-600 hover:bg-primary-50'
+								}`}
+								title="Next page"
+							>
+								<ChevronRightIcon className="h-4 w-4" />
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

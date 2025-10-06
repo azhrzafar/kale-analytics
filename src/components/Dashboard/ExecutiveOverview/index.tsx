@@ -109,41 +109,41 @@ export default function ExecutiveOverview() {
 		}
 	};
 
-	// Fetch alerts
-	const fetchAlerts = async () => {
-		try {
-			setAlerts([
-				{
-					id: '1',
-					type: 'warning',
-					message: 'Bison platform showing 15% lower reply rates',
-					client: 'TechCorp Solutions',
-					metric: 'reply_rate',
-				},
-				{
-					id: '2',
-					type: 'info',
-					message: 'Instantly campaigns performing 420% above average',
-					metric: 'platform_performance',
-				},
-				{
-					id: '3',
-					type: 'error',
-					message: '3 clients with bounce rates > 5% detected',
-					client: 'StartupXYZ',
-					metric: 'bounce_rate',
-				},
-				{
-					id: '4',
-					type: 'info',
-					message: '602K+ leads processed this month',
-					metric: 'lead_volume',
-				},
-			]);
-		} catch (error) {
-			console.error('Error fetching alerts:', error);
-		}
-	};
+	// // Fetch alerts
+	// const fetchAlerts = async () => {
+	// 	try {
+	// 		setAlerts([
+	// 			{
+	// 				id: '1',
+	// 				type: 'warning',
+	// 				message: 'Bison platform showing 15% lower reply rates',
+	// 				client: 'TechCorp Solutions',
+	// 				metric: 'reply_rate',
+	// 			},
+	// 			{
+	// 				id: '2',
+	// 				type: 'info',
+	// 				message: 'Instantly campaigns performing 420% above average',
+	// 				metric: 'platform_performance',
+	// 			},
+	// 			{
+	// 				id: '3',
+	// 				type: 'error',
+	// 				message: '3 clients with bounce rates > 5% detected',
+	// 				client: 'StartupXYZ',
+	// 				metric: 'bounce_rate',
+	// 			},
+	// 			{
+	// 				id: '4',
+	// 				type: 'info',
+	// 				message: '602K+ leads processed this month',
+	// 				metric: 'lead_volume',
+	// 			},
+	// 		]);
+	// 	} catch (error) {
+	// 		console.error('Error fetching alerts:', error);
+	// 	}
+	// };
 
 	// Load KPI and time series data when filters change
 	useEffect(() => {
@@ -166,9 +166,9 @@ export default function ExecutiveOverview() {
 	}, [range, selectedClient]);
 
 	// Load alerts on component mount
-	useEffect(() => {
-		fetchAlerts();
-	}, []);
+	// useEffect(() => {
+	// 	fetchAlerts();
+	// }, []);
 
 	return (
 		<div className="space-y-6">
@@ -191,7 +191,7 @@ export default function ExecutiveOverview() {
 						<option value="all">All Clients</option>
 						{clients.map((client) => (
 							<option key={client.id} value={client.id}>
-								{client['Company Name']}
+								{client.company_name}
 							</option>
 						))}
 					</select>
@@ -222,7 +222,6 @@ export default function ExecutiveOverview() {
 				<SendVolumeTrends data={timeSeriesData} loading={timeSeriesLoading} />
 				<div className="grid grid-cols-2 gap-6">
 					<TopPerformingClients />
-					<QuickActions />
 				</div>
 			</div>
 		</div>
