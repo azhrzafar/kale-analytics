@@ -71,7 +71,7 @@ export async function GET(
 		// Transform data for frontend (field names match your new schema)
 		const transformedCampaigns =
 			campaigns?.map((campaign: any) => ({
-				campaign_id: campaign.id,
+				campaign_id: campaign.camp_id,
 				campaign_name: campaign.campaign_name,
 				platform: campaign.platform,
 				status: campaign.status,

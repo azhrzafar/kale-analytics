@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
 		// Apply platform filter
 		if (platformFilter !== 'all') {
-			query = query.eq('platform', platformFilter);
+			query = query.eq('platform', platformFilter.toLowerCase());
 		}
 
 		// Apply client filter
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 		// Transform data for frontend (field names match your new schema)
 		const transformedCampaigns =
 			campaigns?.map((campaign: any) => ({
-				id: campaign.id,
+				id: campaign.camp_id,
 				campaignId: campaign.campaign_id,
 				name: campaign.campaign_name,
 				client_id: campaign.client_id,

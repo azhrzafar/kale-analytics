@@ -20,7 +20,7 @@ export async function GET(
 		let { data: byExternal, error: byExternalErr } = await supabase
 			.from('campaigns')
 			.select('*')
-			.eq('id', idParam)
+			.eq('camp_id', idParam)
 			.limit(1);
 
 		let row = byExternal && byExternal.length > 0 ? byExternal[0] : null;
@@ -31,7 +31,7 @@ export async function GET(
 			const { data: byNumeric, error: byNumericErr } = await supabase
 				.from('campaigns')
 				.select('*')
-				.eq('id', numericId)
+				.eq('camp_id', numericId)
 				.limit(1);
 			row = byNumeric && byNumeric.length > 0 ? byNumeric[0] : null;
 			if (byNumericErr) {
@@ -61,7 +61,7 @@ export async function GET(
 			den > 0 ? (num / den) * 100 : 0;
 
 		const responsePayload = {
-			id: String(row.id),
+			id: String(row.camp_id),
 			campaignId: String(row.campaign_id),
 			name: row.campaign_name,
 			platform: row.platform,
